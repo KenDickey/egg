@@ -103,11 +103,11 @@ public:
     
     const std::vector<LiteralValue>& literals() const { return _literals; }
     
-    int literalIndexOf(const LiteralValue& lit) const {
+    int indexOf(const LiteralValue& lit) const {
         for (size_t i = 0; i < _literals.size(); i++) {
             if (_literals[i] == lit) return static_cast<int>(i + 1); // 1-based
         }
-        return -1;
+        return 0;
     }
     
     std::vector<SCompiledBlock*> blocks() const;

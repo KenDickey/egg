@@ -7,6 +7,7 @@
 #define _CASCADE_MESSAGE_NODE_H_
 
 #include "SMessageNode.h"
+#include "SCascadeNode.h"
 
 namespace Egg {
 
@@ -25,7 +26,7 @@ public:
     virtual ~SCascadeMessageNode() {}
     
     SCascadeNode* cascade() const { return _cascade; }
-    void cascade_(SCascadeNode* c) { _cascade = c; }
+    void cascade_(SCascadeNode* c) { _cascade = c; receiver_(c->receiver()); }
     
     bool isCascadeMessage() const override { return true; }
 };

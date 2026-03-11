@@ -9,13 +9,19 @@
 
 namespace Egg {
 
-TreecodeEncoder::TreecodeEncoder() : method_(nullptr), script_(nullptr) {
+TreecodeEncoder::TreecodeEncoder() : _method(nullptr), script_(nullptr) {
+}
+
+void TreecodeEncoder::method_(SCompiledMethod* method) {
+    _method = method;
+}
+
+SCompiledMethod* TreecodeEncoder::method() const {
+    return _method;
 }
 
 std::vector<uint8_t> TreecodeEncoder::encodeMethod(SMethodNode* method) {
     stream_.clear();
-    literals_.clear();
-    
     visitMethod_(method);
     return stream_;
 }
@@ -104,20 +110,19 @@ void TreecodeEncoder::visitIdentifier_(SIdentifierNode* node) {
         } else if (name == "false") {
             encodeFalse();
         } else {
-            // Unknown identifier — treat as dynamic variable (resolved at runtime)
             encodeDynamicVar_(name);
         }
     }
 }
 
 void TreecodeEncoder::visitLiteral_(SLiteralNode* node) {
-    nextTypePut(LiteralId);
-    
     const auto& lv = node->literalValue();
-    int index = findLiteralIndex_ifAbsent_(lv, [&](){
-        return addLiteral(lv);
-    });
+    int index = _method->indexOf(lv);
+    nextTypePut(LiteralId);
     nextIntegerPut(index);
+    if (index == 0) {
+        nextIntegerPut(lv.intVal);
+    }
 }
 
 void TreecodeEncoder::visitAssignment_(SAssignmentNode* node) {
@@ -228,7 +233,7 @@ void TreecodeEncoder::nextIntegerPut(int64_t value) {
 void TreecodeEncoder::nextBigIntegerPut(int64_t value) {
     nextPut(0x80);
     
-    for (int i = 0; i < 8; i++) {
+    for (int i = 7; i >= 0; i--) {
         nextPut((value >> (i * 8)) & 0xFF);
     }
 }
@@ -239,37 +244,20 @@ void TreecodeEncoder::nextBooleanPut(bool value) {
 
 void TreecodeEncoder::nextSymbolPut(const egg::string& symbol) {
     auto symLv = LiteralValue::fromSymbol(symbol);
-    int index = findLiteralIndex_ifAbsent_(symLv, [&](){
-        return addLiteral(symLv);
-    });
+    int index = _method->indexOf(symLv);
+    ASSERT(index != 0);
     nextIntegerPut(index);
 }
 
 void TreecodeEncoder::nextLiteralPut(const egg::string& literal) {
     auto litLv = LiteralValue::fromString(literal);
-    int index = literalIndexOf(litLv);
-    if (index < 0) {
-        index = addLiteral(litLv);
-    }
+    int index = _method->indexOf(litLv);
+    ASSERT(index != 0);
     nextIntegerPut(index);
 }
 
 void TreecodeEncoder::nextTypePut(uint8_t typeId) {
     nextPut(typeId);
-}
-
-int TreecodeEncoder::literalIndexOf(const LiteralValue& literal) {
-    for (size_t i = 0; i < literals_.size(); i++) {
-        if (literals_[i] == literal) {
-            return i + 1; // 1-based
-        }
-    }
-    return -1;
-}
-
-int TreecodeEncoder::addLiteral(const LiteralValue& literal) {
-    literals_.push_back(literal);
-    return literals_.size(); // 1-based
 }
 
 void TreecodeEncoder::visitSelector_(SSelectorNode* node) {
@@ -423,42 +411,16 @@ std::vector<uint8_t> TreecodeEncoder::encodeClosureElements_(SBlockNode* node) {
 }
 
 int TreecodeEncoder::compiledBlockIndexOf_(SBlockNode* node) {
-    // Search the literals for a Block literal with matching id, like
-    // Smalltalk's compiledBlockIndexOf: which does findFirst: on the method's literals
+    // Search the method's literals for a Block literal with matching id
+    // (matches Smalltalk's compiledBlockIndexOf: which searches method's pool)
     int blockId = node->index();
-    for (size_t i = 0; i < literals_.size(); i++) {
-        if (literals_[i].isBlock() && literals_[i].asBlock().id == blockId) {
+    const auto& literals = _method->literals();
+    for (size_t i = 0; i < literals.size(); i++) {
+        if (literals[i].isBlock() && literals[i].asBlock().id == blockId) {
             return i + 1; // 1-based index
         }
     }
-    
-    // Block not found in literals — add it now
-    int argCount = node->arguments().size();
-    int tempCount = 0;
-    int envCount = 0;
-    bool capturesSelf = false;
-    bool capturesHome = false;
-    
-    auto scope = node->scope();
-    if (scope) {
-        tempCount = scope->stackSize();
-        envCount = scope->environmentSize();
-        capturesSelf = scope->capturesSelf();
-        auto blockScope = dynamic_cast<BlockScope*>(scope);
-        if (blockScope) {
-            capturesHome = blockScope->capturesHome_();
-        }
-    }
-    
-    auto blockLit = LiteralValue::fromBlock(blockId, argCount, tempCount,
-                                             envCount, capturesSelf, capturesHome);
-    return addLiteral(blockLit);
-}
-
-int TreecodeEncoder::findLiteralIndex_ifAbsent_(const LiteralValue& literal, std::function<int()> block) {
-    int index = literalIndexOf(literal);
-    if (index >= 0) return index;
-    return block();
+    throw std::runtime_error("TreecodeEncoder: block not found in method pool");
 }
 
 } // namespace Egg

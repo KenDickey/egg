@@ -22,23 +22,6 @@ public:
     void acceptVisitor_(SParseNodeVisitor* visitor) override;
     
     bool isSNumberNode() const { return true; }
-    
-    void negate_() {
-        const auto& lv = literalValue();
-        if (lv.isInteger()) {
-            literalValue_(LiteralValue::fromInteger(-lv.asInteger()));
-        } else if (lv.isFloat()) {
-            literalValue_(LiteralValue::fromFloat(-lv.asFloat()));
-        } else {
-            // Legacy fallback
-            egg::string val = value();
-            if (!val.empty() && val[0] != '-') {
-                value_("-" + val);
-            } else if (!val.empty() && val[0] == '-') {
-                value_(val.substr(1));
-            }
-        }
-    }
 };
 
 } // namespace Egg

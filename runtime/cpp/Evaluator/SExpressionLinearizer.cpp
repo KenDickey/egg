@@ -443,7 +443,12 @@ void SExpressionLinearizer::visitBlock(SBlock *anSBlock) {
     auto prevInBlock = this->_inBlock;
     auto prevOperations = this->_operations;
     auto prevStackTop = _stackTop;
-    this->_stackTop = _runtime->blockTempCount_(anSBlock->compiledCode());
+    if (anSBlock->isInlined()) {
+        // Inlined blocks have no compiled code object; their temps are part of
+        // the enclosing script's frame, so we keep the current stack top.
+    } else {
+        this->_stackTop = _runtime->blockTempCount_(anSBlock->compiledCode());
+    }
     this->_inBlock = true;
     this->_operations = newPlatformCode();
     auto statements = anSBlock->statements();

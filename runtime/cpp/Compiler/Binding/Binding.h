@@ -6,6 +6,7 @@
 #define _BINDING_H_
 #include <string>
 #include <cstdint>
+#include <optional>
 #include "../LiteralValue.h"
 
 namespace Egg {
@@ -42,8 +43,8 @@ public:
     }
     
     // Returns the literal value the binding contributes to the method's literal pool.
-    // Returns nullptr if the binding doesn't need a literal (e.g., local vars, self, nil).
-    virtual const LiteralValue* literal() const { return nullptr; }
+    // Returns nullopt if the binding doesn't need a literal (e.g., local vars, self, nil).
+    virtual std::optional<LiteralValue> literal() const { return std::nullopt; }
     
     virtual void encodeUsing_(TreecodeEncoder* encoder) = 0;  // Pure virtual
     

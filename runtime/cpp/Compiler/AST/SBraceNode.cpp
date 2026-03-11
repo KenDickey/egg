@@ -40,7 +40,7 @@ SParseNode* SBraceNode::expanded() {
     auto new_ = _compiler->selectorNode();
     new_->symbol_("new:");
     auto argument = _compiler->numericSLiteralNode();
-    argument->value_(std::to_string(n));
+    argument->value_(n);
     auto array = _compiler->messageNode();
     array->receiver_(receiver);
     array->selector_(new_);
@@ -56,7 +56,7 @@ SParseNode* SBraceNode::expanded() {
         auto sel = _compiler->selectorNode();
         sel->symbol_("at:put:");
         auto idx = _compiler->numericSLiteralNode();
-        idx->value_(std::to_string(i));
+        idx->value_(i);
         std::vector<SParseNode*> args;
         args.push_back(idx);
         args.push_back(elem);

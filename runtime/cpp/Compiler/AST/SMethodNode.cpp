@@ -14,6 +14,7 @@
 #include "SSelectorNode.h"
 #include "../Backend/SCompiledMethod.h"
 #include "../Backend/SCompiledBlock.h"
+#include "../TreecodeEncoder.h"
 #include "../Binding/BlockScope.h"
 #include "../SSmalltalkCompiler.h"
 #include "../Binding/MethodScope.h"
@@ -66,6 +67,11 @@ SCompiledMethod* SMethodNode::buildMethod() {
         block->method_(cm);
     }
     
+    // Encode treecodes (matching Smalltalk: encoder := TreecodeEncoder new method: cm)
+    TreecodeEncoder encoder;
+    encoder.method_(cm);
+    auto treecodes = encoder.encodeMethod(this);
+    cm->treecodes_(treecodes);
     
     return cm;
 }

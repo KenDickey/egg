@@ -64,7 +64,9 @@ public:
     void visitComment_(SCommentNode* node) override;
     
     const std::vector<uint8_t>& treecode() const { return stream_; }
-    const std::vector<LiteralValue>& literals() const { return literals_; }
+    
+    void method_(SCompiledMethod* method);
+    SCompiledMethod* method() const;
     
     void encodeNil();
     void encodeTrue();
@@ -80,8 +82,7 @@ public:
     
 private:
     std::vector<uint8_t> stream_;  // Output stream for treecode bytes
-    std::vector<LiteralValue> literals_; // Typed literal pool for the method
-    SCompiledMethod* method_;  // Current method being compiled
+    SCompiledMethod* _method;  // The method whose literal pool we index into
     SScriptNode* script_;  // Current script node (for context tracking)
     
     void nextPut(uint8_t byte);
@@ -101,9 +102,7 @@ private:
     void visitStatements(const std::vector<SParseNode*>& statements);
     void visitScript_(SScriptNode* node);
     
-    int findLiteralIndex_ifAbsent_(const LiteralValue& literal, std::function<int()> block);
-    int literalIndexOf(const LiteralValue& literal);
-    int addLiteral(const LiteralValue& literal);
+
 };
 
 } // namespace Egg

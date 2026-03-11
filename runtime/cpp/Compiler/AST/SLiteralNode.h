@@ -33,10 +33,7 @@ public:
     
     // Backwards‑compatible string accessors
     egg::string value() const { return _litValue.printString(); }
-    void value_(const egg::string& v) {
-        // Legacy: if called with a plain string, store as String
-        _litValue = LiteralValue::fromString(v);
-    }
+    void value_(const LiteralValue& v) { _litValue = v; }
     
     void beSymbol_() { _litValue.tag = LiteralValue::Symbol; }
     bool hasSymbol() const { return _litValue.isSymbol(); }
