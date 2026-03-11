@@ -101,10 +101,7 @@ void SemanticVisitor::analyzeScript_while_(SScriptNode* aScriptNode, std::functi
 
 void SemanticVisitor::visitAssignment_(SAssignmentNode* node) {
     analyzeAssignment_(node);
-    SParseNode* expression = node->expression();
-    if (expression) {
-        expression->acceptVisitor_(this);
-    }
+    node->expression()->acceptVisitor_(this);
 }
 
 void SemanticVisitor::visitBlock_(SBlockNode* node) {
@@ -118,18 +115,12 @@ void SemanticVisitor::visitBlock_(SBlockNode* node) {
 
 void SemanticVisitor::visitBrace_(SBraceNode* node) {
     if (!node->isLiteral()) {
-        SParseNode* asMessage = node->asSMessageNode();
-        if (asMessage && asMessage->isMessage()) {
-            asMessage->acceptVisitor_(this);
-        }
+        node->asSMessageNode()->acceptVisitor_(this);
     }
 }
 
 void SemanticVisitor::visitCascade_(SCascadeNode* node) {
-    SParseNode* receiver = node->receiver();
-    if (receiver) {
-        receiver->acceptVisitor_(this);
-    }
+    node->receiver()->acceptVisitor_(this);
     
     auto& messages = node->messages();
     for (auto msg : messages) {
@@ -144,10 +135,7 @@ void SemanticVisitor::visitIdentifier_(SIdentifierNode* node) {
 void SemanticVisitor::visitMessage_(SMessageNode* node) {
     analyzeMessage_(node);
     
-    SParseNode* receiver = node->receiver();
-    if (receiver) {
-        receiver->acceptVisitor_(this);
-    }
+    node->receiver()->acceptVisitor_(this);
     
     auto& arguments = node->arguments();
     for (auto arg : arguments) {
@@ -169,10 +157,7 @@ void SemanticVisitor::visitMethod_(SMethodNode* node) {
 }
 
 void SemanticVisitor::visitReturn_(SReturnNode* node) {
-    SParseNode* expression = node->expression();
-    if (expression) {
-        expression->acceptVisitor_(this);
-    }
+    node->expression()->acceptVisitor_(this);
     analyzeReturn_(node);
 }
 

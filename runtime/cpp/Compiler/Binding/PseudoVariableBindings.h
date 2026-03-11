@@ -78,7 +78,8 @@ public:
 
 class DynamicBinding : public Binding {
 public:
-    DynamicBinding(const egg::string& name) : Binding(Kind::Global, name, 0) {}
+    DynamicBinding(const egg::string& name) 
+        : Binding(Kind::Global, name, 0) {}
     
     static DynamicBinding* named_(const egg::string& name);
     
@@ -87,6 +88,8 @@ public:
     void beReferencedFrom_(SScriptNode* aScriptNode) override;
     
     void encodeUsing_(TreecodeEncoder* encoder) override;
+    
+    std::optional<LiteralValue> literal() const override { return LiteralValue::fromSymbol(name()); }
     
     Binding* copy_() override {
         return new DynamicBinding(name());

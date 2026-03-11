@@ -64,6 +64,9 @@ struct LiteralValue {
     std::vector<uint8_t> bytes;
 
     LiteralValue() : tag(None), intVal(0), blockInfo{0, 0, 0, 0, false, false} {}
+    LiteralValue(int64_t v) : tag(Integer), intVal(v), blockInfo{0, 0, 0, 0, false, false} {}
+    LiteralValue(int v) : tag(Integer), intVal(v), blockInfo{0, 0, 0, 0, false, false} {}
+    LiteralValue(double v) : tag(Float), floatVal(v), blockInfo{0, 0, 0, 0, false, false} {}
 
     // ----- factory helpers -----
 
