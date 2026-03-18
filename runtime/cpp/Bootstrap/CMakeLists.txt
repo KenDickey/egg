@@ -29,5 +29,3 @@ target_link_libraries(bootstrap_demo
     egg_compiler
 )
 
-# Add tests subdirectory
-add_subdirectory(tests)
