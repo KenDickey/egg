@@ -306,7 +306,7 @@ void Egg::Evaluator::messageNotUnderstood_(SAbstractMessage *message)
 	auto array = _runtime->newArray_(args);
 	_context->push_(message->selector());
 	_context->push_((Object*)array);
-    auto symbol = _runtime->addSymbol_("doesNotUnderstand:");
+    auto symbol = _runtime->existingSymbolFrom_("doesNotUnderstand:");
     auto behavior = _runtime->behaviorOf_(_regR);
 	auto dnu = _runtime->lookup_startingAt_((Object*)symbol, behavior);
     if (!dnu)
@@ -326,6 +326,7 @@ void Evaluator::doesNotKnow(const Object *symbol) { ASSERT(false); }
 void Evaluator::visitIdentifier(SIdentifier *identifier)
 {
     SBinding* binding = identifier->binding();
+    
     auto value = binding->valueWithin_(_context);
     if (!value)
         return this->doesNotKnow(binding->name());
@@ -359,8 +360,6 @@ void Evaluator::visitOpDispatchMessage(SOpDispatchMessage *anSOpDispatchMessage)
 {
     SAbstractMessage *message = anSOpDispatchMessage->message();
 
-    //std::cout << "dispatching " << message->selector()->asLocalString() << std::endl;
-    
     UndermessagePointer undermessage = message->cachedUndermessage();
     if (undermessage != nullptr) {
         return this->evaluateUndermessage_with_(message, undermessage);
@@ -516,15 +515,25 @@ Object* Evaluator::primitiveAt() {
     auto index = this->_context->firstArgument();
 
     if (receiver->isSmallInteger())
-        error("primitiveAt: receiver must not be an integer");
+        return this->failPrimitive();
 
     if (!index->isSmallInteger())
-        error("primitiveAt: index must be an integer");
+        return this->failPrimitive();
     
     auto index_int = index->asSmallInteger()->asNative();
 
     auto heapreceiver = receiver->asHeapObject();
-    return heapreceiver->isBytes() ? newIntObject(heapreceiver->byteAt_(index_int)) : _runtime->indexedSlotAt_(heapreceiver, index_int);
+    if (heapreceiver->isBytes()) {
+        if (index_int < 1 || (unsigned)(index_int - 1) >= heapreceiver->size())
+            return this->failPrimitive();
+        return newIntObject(heapreceiver->byteAt_(index_int));
+    } else {
+        auto instSize = heapreceiver->isNamed() ? (int)_runtime->speciesInstanceSize_(_runtime->speciesOf_((Object*)heapreceiver)) : 0;
+        auto rawSlot = heapreceiver->isNamed() ? index_int + instSize : index_int;
+        if (rawSlot < 1 || (unsigned)(rawSlot - 1) >= heapreceiver->size())
+            return this->failPrimitive();
+        return _runtime->indexedSlotAt_(heapreceiver, index_int);
+    }
 }
 
 Object* Evaluator::primitiveAtPut() {
@@ -964,8 +973,12 @@ Object* Evaluator::primitiveSMIBitOr() {
 Object* Evaluator::primitiveSMIBitShift() {
     auto self = this->_context->self()->asSmallInteger()->asNative();
     auto firstArg = this->_context->firstArgument()->asSmallInteger()->asNative();
-    auto shifted = firstArg > 0 ? self << firstArg : self >> -firstArg;
-    return newIntObject(shifted);
+    if (firstArg > 0) {
+        if (firstArg >= 63 || (self != 0 && (self > (SmallInteger::SMALLINT_MAX >> firstArg) || self < (SmallInteger::SMALLINT_MIN >> firstArg))))
+            return failPrimitive();
+        return newIntObject(self << firstArg);
+    }
+    return newIntObject(self >> -firstArg);
 }
 
 Object* Evaluator::primitiveSMIBitXor() {
@@ -1001,11 +1014,25 @@ Object* Evaluator::primitiveSMIHighBit() {
 }
 
 Object* Evaluator::primitiveSMIIntDiv() {
-    return newIntObject(this->_context->self()->asSmallInteger()->asNative() / (this->_context->firstArgument()->asSmallInteger()->asNative()));
+    // Smalltalk // is floored division (toward negative infinity)
+    auto a = this->_context->self()->asSmallInteger()->asNative();
+    auto b = this->_context->firstArgument()->asSmallInteger()->asNative();
+    auto q = a / b;
+    // Adjust: if remainder is nonzero and signs differ, subtract 1
+    if ((a % b != 0) && ((a ^ b) < 0))
+        q -= 1;
+    return newIntObject(q);
 }
 
 Object* Evaluator::primitiveSMIIntQuot() {
-    return newIntObject(this->_context->self()->asSmallInteger()->asNative() % (this->_context->firstArgument()->asSmallInteger()->asNative()));
+    // Smalltalk \\ is floored remainder (modulo), same sign as divisor
+    auto a = this->_context->self()->asSmallInteger()->asNative();
+    auto b = this->_context->firstArgument()->asSmallInteger()->asNative();
+    auto r = a % b;
+    // Adjust: if remainder is nonzero and signs differ, add divisor
+    if (r != 0 && ((a ^ b) < 0))
+        r += b;
+    return newIntObject(r);
 }
 
 Object* Evaluator::primitiveSMIMinus() {
@@ -1281,7 +1308,11 @@ Object* Evaluator::underprimitiveBasicHashPut(Object *receiver, std::vector<Obje
 }
 
 Object* Evaluator::underprimitiveBitShiftLeft(Object *receiver, std::vector<Object*> &args) {
-    auto result = receiver->asSmallInteger()->asNative() << args[0]->asSmallInteger()->asNative();
+    auto value = receiver->asSmallInteger()->asNative();
+    auto shift = args[0]->asSmallInteger()->asNative();
+    if (shift >= 63 || (value != 0 && shift > 0 && (value > (SmallInteger::SMALLINT_MAX >> shift) || value < (SmallInteger::SMALLINT_MIN >> shift))))
+        return (Object*)_nilObj;
+    auto result = value << shift;
     return newIntObject(result);
 }
 
@@ -1354,7 +1385,11 @@ Object* Evaluator::underprimitiveSMIBitOr(Object *receiver, std::vector<Object*>
 }
 
 Object* Evaluator::underprimitiveSMIBitShiftLeft(Object *receiver, std::vector<Object*> &args) {
-    return newIntObject((receiver->asSmallInteger()->asNative() << args[0]->asSmallInteger()->asNative()));
+    auto value = receiver->asSmallInteger()->asNative();
+    auto shift = args[0]->asSmallInteger()->asNative();
+    if (shift >= 63 || (value != 0 && shift > 0 && (value > (SmallInteger::SMALLINT_MAX >> shift) || value < (SmallInteger::SMALLINT_MIN >> shift))))
+        return (Object*)_nilObj;
+    return newIntObject(value << shift);
 }
 
 Object* Evaluator::underprimitiveSMIBitShiftRight(Object *receiver, std::vector<Object*> &args) {
