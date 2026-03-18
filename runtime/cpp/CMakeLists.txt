@@ -35,10 +35,16 @@ find_package(cxxopts REQUIRED)
 # *************************************************
 
 file(GLOB ALL_SRC "*.cpp" "Evaluator/*.cpp" "Allocator/*.cpp" "Utils/*.cpp" "${PLATFORM}/*.cpp")
+list(FILTER ALL_SRC EXCLUDE REGEX "Main\\.cpp$")
 
-add_executable(${EXE} ${ALL_SRC})
-target_link_libraries(${EXE} libffi::libffi cxxopts::cxxopts) # link agains libffi
+# Create runtime library (for use by bootstrapper and other tools)
+add_library(egg_runtime STATIC ${ALL_SRC})
+target_link_libraries(egg_runtime PUBLIC libffi::libffi)
+target_include_directories(egg_runtime PUBLIC . ${PLATFORM})
 
+# Create egg executable
+add_executable(${EXE} Main.cpp)
+target_link_libraries(${EXE} egg_runtime bootstrapper_lib egg_compiler cxxopts::cxxopts)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     target_link_libraries(${EXE} dl)
@@ -48,6 +54,10 @@ set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
 
 include_directories(. ${PLATFORM})
+
+# Add compiler and tests
+add_subdirectory(Compiler)
+add_subdirectory(Bootstrap)
 
 
 include(CPack)
