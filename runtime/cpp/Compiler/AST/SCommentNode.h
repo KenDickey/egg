@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
  */
 
@@ -17,7 +17,7 @@ namespace Egg {
  */
 class SCommentNode : public SParseNode {
 private:
-    egg::string _value;
+    Egg::string _value;
     
 public:
     SCommentNode(SSmalltalkCompiler* compiler);
@@ -25,8 +25,8 @@ public:
     
     void acceptVisitor_(SParseNodeVisitor* visitor) override;
     
-    egg::string value() const { return _value; }
-    void value_(const egg::string& aString) { _value = aString; }
+    Egg::string value() const { return _value; }
+    void value_(const Egg::string& aString) { _value = aString; }
     
     bool isComment() const override { return true; }
 };

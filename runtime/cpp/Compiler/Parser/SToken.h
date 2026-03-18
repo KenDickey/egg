@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
  */
 
@@ -11,7 +11,7 @@
 #include <vector>
 #include "../Stretch.h"
 #include "../Object.h"
-#include "../egg_string.h"
+#include "Utils/egg_string.h"
 
 namespace Egg {
 
@@ -22,7 +22,7 @@ class SToken {
 protected:
     SSmalltalkCompiler* _compiler;
     Stretch _stretch;
-    std::vector<egg::string> _comments;
+    std::vector<Egg::string> _comments;
     
 public:
     SToken() : _compiler(nullptr) {}
@@ -37,14 +37,14 @@ public:
     Stretch stretch() const { return _stretch; }
     void stretch_(const Stretch& pos) { _stretch = pos; }
     
-    virtual egg::string value() const { return ""; }
-    virtual void value_(const egg::string& val) {}
+    virtual Egg::string value() const { return ""; }
+    virtual void value_(const Egg::string& val) {}
     
-    void addComment_(const egg::string& comment) {
+    void addComment_(const Egg::string& comment) {
         _comments.push_back(comment);
     }
     
-    const std::vector<egg::string>& comments() const { return _comments; }
+    const std::vector<Egg::string>& comments() const { return _comments; }
     
     void moveCommentsFrom_(SToken* other) {
         if (other) {
@@ -67,8 +67,8 @@ public:
     virtual bool is_(char ch) const { return false; }
     bool is(char ch) const { return is_(ch); }
     
-    virtual bool is_(const egg::string& str) const { return false; }
-    bool is(const egg::string& str) const { return is_(str); }
+    virtual bool is_(const Egg::string& str) const { return false; }
+    bool is(const Egg::string& str) const { return is_(str); }
     
     virtual bool endsExpression() const {
         return isEnd() || is_(']') || is_(')') || is_('}') || is_('.');
@@ -87,15 +87,15 @@ public:
 
 class SSymbolicToken : public SToken {
 protected:
-    egg::string _value;
+    Egg::string _value;
     bool _isSymbol;
     
 public:
-    SSymbolicToken(const Stretch& pos, const egg::string& val, bool isSymbol = false) 
+    SSymbolicToken(const Stretch& pos, const Egg::string& val, bool isSymbol = false) 
         : SToken(pos), _value(val), _isSymbol(isSymbol) {}
     
-    egg::string value() const override { return _value; }
-    void value_(const egg::string& val) override { _value = val; }
+    Egg::string value() const override { return _value; }
+    void value_(const Egg::string& val) override { _value = val; }
     
     void beSymbol_() { _isSymbol = true; }
     bool isSymbol() const { return _isSymbol; }
@@ -112,7 +112,7 @@ public:
         return _value.length() == 1 && _value[0] == (char32_t)ch;
     }
     
-    bool is_(const egg::string& str) const override {
+    bool is_(const Egg::string& str) const override {
         return _value == str;
     }
     
@@ -122,7 +122,7 @@ public:
 
 class SDelimiterToken : public SSymbolicToken {
 public:
-    SDelimiterToken(const Stretch& pos, const egg::string& val) 
+    SDelimiterToken(const Stretch& pos, const Egg::string& val) 
         : SSymbolicToken(pos, val, false) {}
     bool isDelimiter() const override { return true; }
     bool isSymbolic() const override { return false; }
@@ -133,7 +133,7 @@ class SStringToken : public SSymbolicToken {
 public:
     enum LiteralKind { LitString, LitSymbol, LitNumber, LitCharacter };
     
-    SStringToken(const Stretch& pos, const egg::string& val, LiteralKind kind = LitString) 
+    SStringToken(const Stretch& pos, const Egg::string& val, LiteralKind kind = LitString) 
         : SSymbolicToken(pos, val, false), _kind(kind) {}
     bool isLiteral() const override { return true; }
     bool isString() const override { return true; }
@@ -142,7 +142,7 @@ public:
     
     // Literal tokens should never match delimiter checks like is_('.')
     bool is_(char ch) const override { return false; }
-    bool is_(const egg::string& str) const override { return false; }
+    bool is_(const Egg::string& str) const override { return false; }
     
     LiteralKind literalKind() const { return _kind; }
     void literalKind_(LiteralKind k) { _kind = k; }

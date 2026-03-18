@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
 */
 #ifndef _PSEUDOVARIABLEBINDINGS_H_
@@ -78,10 +78,10 @@ public:
 
 class DynamicBinding : public Binding {
 public:
-    DynamicBinding(const egg::string& name) 
+    DynamicBinding(const Egg::string& name) 
         : Binding(Kind::Global, name, 0) {}
     
-    static DynamicBinding* named_(const egg::string& name);
+    static DynamicBinding* named_(const Egg::string& name);
     
     bool isDynamic() const override { return true; }
     
@@ -98,13 +98,13 @@ public:
 
 class NestedDynamicBinding : public DynamicBinding {
 private:
-    std::vector<egg::string> _names;
+    std::vector<Egg::string> _names;
     
 public:
-    NestedDynamicBinding(const std::vector<egg::string>& names) 
+    NestedDynamicBinding(const std::vector<Egg::string>& names) 
         : DynamicBinding(buildCompositeName(names)), _names(names) {}
     
-    const std::vector<egg::string>& names() const { return _names; }
+    const std::vector<Egg::string>& names() const { return _names; }
     
     void encodeUsing_(TreecodeEncoder* encoder) override;
     
@@ -113,8 +113,8 @@ public:
     }
     
 private:
-    static egg::string buildCompositeName(const std::vector<egg::string>& names) {
-        egg::string result;
+    static Egg::string buildCompositeName(const std::vector<Egg::string>& names) {
+        Egg::string result;
         for (size_t i = 0; i < names.size(); ++i) {
             if (i > 0) result += ".";
             result += names[i];

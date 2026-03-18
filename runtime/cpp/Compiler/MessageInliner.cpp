@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
  */
 
@@ -25,7 +25,7 @@ void MessageInliner::inline_(SMessageNode* aMessageNode) {
     }
     
     SSelectorNode* selectorNode = static_cast<SSelectorNode*>(_message->selector());
-    egg::string s = selectorNode->value();
+    Egg::string s = selectorNode->value();
     
     if (s == "ifTrue:" || s == "ifFalse:" || s == "or:" || s == "and:" || 
         s == "timesRepeat:" || s == "andNot:" || s == "orNot:" || s == "ifNil:") {
@@ -73,11 +73,11 @@ void MessageInliner::inline_(SMessageNode* aMessageNode) {
         return;
     }
     
-    std::vector<egg::string> keywords;
+    std::vector<Egg::string> keywords;
     size_t pos = 0;
     while (pos < s.length()) {
         size_t colon = s.find(':', pos);
-        if (colon == egg::string::npos) break;
+        if (colon == Egg::string::npos) break;
         keywords.push_back(s.substr(pos, colon - pos));
         pos = colon + 1;
     }
@@ -88,30 +88,30 @@ void MessageInliner::inline_(SMessageNode* aMessageNode) {
         }
         
         bool allAnd = std::all_of(keywords.begin(), keywords.end(), 
-                                   [](const egg::string& k) { return k == "and"; });
+                                   [](const Egg::string& k) { return k == "and"; });
         if (allAnd) {
             inlineConditional();
             return;
         }
         
         bool allOr = std::all_of(keywords.begin(), keywords.end(), 
-                                  [](const egg::string& k) { return k == "or"; });
+                                  [](const Egg::string& k) { return k == "or"; });
         if (allOr) {
             inlineConditional();
             return;
         }
         
         if (keywords.size() > 1) {
-            egg::string last = keywords.back();
+            Egg::string last = keywords.back();
             bool allButLastAnd = std::all_of(keywords.begin(), keywords.end() - 1,
-                                              [](const egg::string& k) { return k == "and"; });
+                                              [](const Egg::string& k) { return k == "and"; });
             if (allButLastAnd && (last == "ifTrue" || last == "ifFalse")) {
                 inlineConditional();
                 return;
             }
             
             bool allButLastOr = std::all_of(keywords.begin(), keywords.end() - 1,
-                                             [](const egg::string& k) { return k == "or"; });
+                                             [](const Egg::string& k) { return k == "or"; });
             if (allButLastOr && (last == "ifTrue" || last == "ifFalse")) {
                 inlineConditional();
                 return;

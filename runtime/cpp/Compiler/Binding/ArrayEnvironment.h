@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
 */
 #ifndef _ARRAYENVIRONMENT_H_

@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
  */
 
@@ -19,7 +19,7 @@ class Binding;
  */
 class SIdentifierNode : public SParseNode {
 private:
-    egg::string _name;
+    Egg::string _name;
     Binding* _binding;
     bool _assigned = false;
     
@@ -29,8 +29,8 @@ public:
     
     void acceptVisitor_(SParseNodeVisitor* visitor) override;
     
-    egg::string name() const { return _name; }
-    void name_(const egg::string& n) { _name = n; }
+    Egg::string name() const { return _name; }
+    void name_(const Egg::string& n) { _name = n; }
     
     Binding* binding() const { return _binding; }
     void binding_(Binding* b) { _binding = b; }

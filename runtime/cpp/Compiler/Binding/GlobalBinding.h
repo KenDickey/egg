@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
 */
 #ifndef _GLOBALBINDING_H_
@@ -10,7 +10,7 @@ namespace Egg {
 
 class GlobalBinding : public Binding {
 public:
-    GlobalBinding(const egg::string& name, uint32_t position)
+    GlobalBinding(const Egg::string& name, uint32_t position)
         : Binding(Kind::Global, name, position) {}
     
     Binding* copy_() override {

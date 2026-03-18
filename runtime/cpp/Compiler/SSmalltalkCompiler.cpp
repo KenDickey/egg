@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
 */
 #include "SSmalltalkCompiler.h"
@@ -101,14 +101,14 @@ SCommentNode* SSmalltalkCompiler::commentNode() {
     return new SCommentNode(this);
 }
 
-CompilationError* SSmalltalkCompiler::compilationError_stretch_(const egg::string& aString, Stretch* aStretch) {
+CompilationError* SSmalltalkCompiler::compilationError_stretch_(const Egg::string& aString, Stretch* aStretch) {
     CompilationError* error = new CompilationError(aString);
     error->compiler_(this);
     error->stretch_(aStretch);
     return error;
 }
 
-CompilationResult* SSmalltalkCompiler::compileMethod_(const egg::string& aString) {
+CompilationResult* SSmalltalkCompiler::compileMethod_(const Egg::string& aString) {
     _source = aString;
     if (_frontend) {
             parseMethod();
@@ -130,12 +130,12 @@ SEndToken* SSmalltalkCompiler::endToken() {
     return new SEndToken(Stretch(0, 0));
 }
 
-CompilationError* SSmalltalkCompiler::error_at_(const egg::string& aString, int anInteger) {
+CompilationError* SSmalltalkCompiler::error_at_(const Egg::string& aString, int anInteger) {
     Stretch* stretch = new Stretch(anInteger, anInteger);
     return error_stretch_(aString, stretch);
 }
 
-CompilationError* SSmalltalkCompiler::error_stretch_(const egg::string& aString, Stretch* aStretch) {
+CompilationError* SSmalltalkCompiler::error_stretch_(const Egg::string& aString, Stretch* aStretch) {
     auto error = compilationError_stretch_(aString, aStretch);
     error->beFatal();
     throw *error;
@@ -198,7 +198,7 @@ void SSmalltalkCompiler::parseFragment() {
     }
 }
 
-SMethodNode* SSmalltalkCompiler::parseFragment_(const egg::string& aString) {
+SMethodNode* SSmalltalkCompiler::parseFragment_(const Egg::string& aString) {
     _source = aString;
     try { 
         parseFragment(); 
@@ -215,7 +215,7 @@ void SSmalltalkCompiler::parseMethod() {
     if (_result) _result->ast_(_ast);
 }
 
-CompilationResult* SSmalltalkCompiler::parseMethod_(const egg::string& aString) {
+CompilationResult* SSmalltalkCompiler::parseMethod_(const Egg::string& aString) {
     _source = aString;
     if (_frontend) {
             parseMethod();
@@ -270,11 +270,11 @@ SSelectorNode* SSmalltalkCompiler::selectorNode() {
     return new SSelectorNode(this);
 }
 
-egg::string SSmalltalkCompiler::sourceCode() {
+Egg::string SSmalltalkCompiler::sourceCode() {
     return _source;
 }
 
-void SSmalltalkCompiler::sourceCode_(const egg::string& aString) {
+void SSmalltalkCompiler::sourceCode_(const Egg::string& aString) {
     _source = aString;
 }
 
@@ -286,7 +286,7 @@ bool SSmalltalkCompiler::supportsBraceNodes() {
     return true;
 }
 
-void SSmalltalkCompiler::warning_at_(const egg::string& aString, Stretch* aStretch) {
+void SSmalltalkCompiler::warning_at_(const Egg::string& aString, Stretch* aStretch) {
     auto error = compilationError_stretch_(aString, aStretch);
     error->beWarning();
     throw *error;

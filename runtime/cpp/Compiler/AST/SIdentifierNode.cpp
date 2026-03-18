@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
  */
 
@@ -65,7 +65,7 @@ void SIdentifierNode::beAssigned() {
 void SIdentifierNode::checkLowercase() {
     if (!_name.empty()) {
         char32_t first = _name[0];
-        if (egg::isLetter(first) && egg::isUppercase(first)) {
+        if (Egg::isLetter(first) && Egg::isUppercase(first)) {
             std::cerr << "Warning: variable '" << _name << "' should start with a lowercase letter." << std::endl;
         }
     }

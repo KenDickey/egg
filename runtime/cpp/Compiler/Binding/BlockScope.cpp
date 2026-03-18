@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
 */
 #include "BlockScope.h"
@@ -15,7 +15,7 @@ BlockScope::BlockScope() : ScriptScope() {
 }
 
 Binding* BlockScope::captureArgument_(Binding* anArgumentBinding) {
-    egg::string name = anArgumentBinding->name();
+    Egg::string name = anArgumentBinding->name();
     auto it = _captured.find(name);
     if (it != _captured.end()) {
         return it->second;
@@ -61,7 +61,7 @@ void BlockScope::captureSelf_() {
 }
 
 Binding* BlockScope::captureTemporary_(Binding* aTemporaryBinding) {
-    egg::string name = aTemporaryBinding->name();
+    Egg::string name = aTemporaryBinding->name();
     if (defines_(name)) {
         return aTemporaryBinding;
     }
@@ -265,13 +265,13 @@ ScriptScope* BlockScope::realParent_() {
     return realParent ? realParent->scope() : nullptr;
 }
 
-Binding* BlockScope::resolve_(const egg::string& aString) {
+Binding* BlockScope::resolve_(const Egg::string& aString) {
     auto local = resolveLocal_(aString);
     if (local) return local;
     return parent_()->resolve_(aString);
 }
 
-Binding* BlockScope::resolveLocal_(const egg::string& aString) {
+Binding* BlockScope::resolveLocal_(const Egg::string& aString) {
     auto local = ScriptScope::resolveLocal_(aString);
     if (local) return local;
     
@@ -279,14 +279,14 @@ Binding* BlockScope::resolveLocal_(const egg::string& aString) {
     return (it != _captured.end()) ? it->second : nullptr;
 }
 
-SScriptNode* BlockScope::scriptDefining_(const egg::string& aString) {
+SScriptNode* BlockScope::scriptDefining_(const Egg::string& aString) {
     if (defines_(aString)) {
         return _script;
     }
     return parent_()->scriptDefining_(aString);
 }
 
-Binding* BlockScope::transferLocal_(const egg::string& name) {
+Binding* BlockScope::transferLocal_(const Egg::string& name) {
     auto binding = resolveLocal_(name);
     if (binding) return binding;
     

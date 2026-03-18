@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
 */
 #ifndef _BLOCKSCOPE_H_
@@ -17,7 +17,7 @@ namespace Egg {
 class BlockScope : public ScriptScope {
 private:
     std::vector<SParseNode*> _environments;
-    std::map<egg::string, Binding*> _captured;
+    std::map<Egg::string, Binding*> _captured;
     
     Binding* captureArgument_(Binding* anArgumentBinding);
     Binding* captureTemporary_(Binding* aTemporaryBinding);
@@ -46,10 +46,10 @@ public:
     Binding* captureLocal_(Binding* aLocalBinding) override;
     void captureSelf_() override;
     int* environmentIndexOf_(SScriptNode* aScriptNode) override;
-    Binding* resolve_(const egg::string& aString) override;
-    Binding* resolveLocal_(const egg::string& aString);
-    SScriptNode* scriptDefining_(const egg::string& aString) override;
-    Binding* transferLocal_(const egg::string& name) override;
+    Binding* resolve_(const Egg::string& aString) override;
+    Binding* resolveLocal_(const Egg::string& aString);
+    SScriptNode* scriptDefining_(const Egg::string& aString) override;
+    Binding* transferLocal_(const Egg::string& name) override;
     std::vector<Binding*> localBindings_() override;
     void positionDefinedLocals_() override;
     void positionLocals_() override;

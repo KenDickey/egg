@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
  */
 
@@ -9,7 +9,7 @@
 #include <string>
 #include <stdexcept>
 #include "Stretch.h"
-#include "egg_string.h"
+#include "Utils/egg_string.h"
 
 namespace Egg {
 
@@ -25,10 +25,10 @@ private:
     bool _resumable;
     bool _retryable;
     Stretch* _stretch;
-    egg::string _description;
+    Egg::string _description;
     
 public:
-    CompilationError(const egg::string& desc = "");
+    CompilationError(const Egg::string& desc = "");
     virtual ~CompilationError() {}
     
     void beFatal();
@@ -36,13 +36,13 @@ public:
     void beWarning();
     SSmalltalkCompiler* compiler() { return _compiler; }
     void compiler_(SSmalltalkCompiler* aSCompiler);
-    void description_(const egg::string& aString) { _description = aString; }
-    egg::string description() const { return _description; }
+    void description_(const Egg::string& aString) { _description = aString; }
+    Egg::string description() const { return _description; }
     bool isResumable() const { return _resumable; }
     bool isUndeclaredAccess() const { return false; }
     bool isUndeclaredAssignment() const { return false; }
     void proceed();
-    egg::string source();
+    Egg::string source();
     Stretch* stretch() { return _stretch; }
     void stretch_(Stretch* aStretch) { _stretch = aStretch; }
 };

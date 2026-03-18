@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
 */
 #ifndef _METHODSCOPE_H_
@@ -23,10 +23,10 @@ class DynamicBinding;
  */
 class MethodScope : public ScriptScope {
 private:
-    std::map<egg::string, Binding*> _pseudo;
+    std::map<Egg::string, Binding*> _pseudo;
     
     void initializePseudoVars_();
-    Binding* resolvePseudo_(const egg::string& aString);
+    Binding* resolvePseudo_(const Egg::string& aString);
     
 public:
     MethodScope();
@@ -36,9 +36,9 @@ public:
     Binding* captureLocal_(Binding* aLocalBinding) override;
     void captureSelf_() override;
     int* environmentIndexOf_(SScriptNode* aScriptNode) override;
-    Binding* resolve_(const egg::string& aString) override;
-    SScriptNode* scriptDefining_(const egg::string& aString) override;
-    Binding* transferLocal_(const egg::string& name) override;
+    Binding* resolve_(const Egg::string& aString) override;
+    SScriptNode* scriptDefining_(const Egg::string& aString) override;
+    Binding* transferLocal_(const Egg::string& name) override;
 };
 
 } // namespace Egg

@@ -11,7 +11,7 @@
 #include <cstring>
 #include <ostream>
 
-namespace egg {
+namespace Egg {
 
 /**
  * Unicode string type for the Egg compiler pipeline.
@@ -111,13 +111,29 @@ public:
         return result;
     }
 
-    // ---- Override methods that return std::u32string to return egg::string ----
+    // ---- Latin-1 support ----
+
+    bool isLatin1() const {
+        for (char32_t cp : *this)
+            if (cp > 0xFF) return false;
+        return true;
+    }
+
+    // Returns a new[]-allocated Latin-1 byte array. Caller must delete[].
+    char* toBytes() const {
+        char* bytes = new char[size()];
+        for (size_type i = 0; i < size(); i++)
+            bytes[i] = static_cast<char>((*this)[i]);
+        return bytes;
+    }
+
+    // ---- Override methods that return std::u32string to return Egg::string ----
 
     string substr(size_type pos = 0, size_type count = npos) const {
         return string(std::u32string::substr(pos, count));
     }
 
-    // ---- Concatenation returning egg::string ----
+    // ---- Concatenation returning Egg::string ----
 
     string operator+(const string& other) const {
         return string(static_cast<const std::u32string&>(*this) +
@@ -259,13 +275,13 @@ inline bool isUppercase(char32_t ch) {
     return false;
 }
 
-} // namespace egg
+} // namespace Egg
 
-// Allow egg::string as key in std::unordered_map
+// Allow Egg::string as key in std::unordered_map
 namespace std {
 template<>
-struct hash<egg::string> {
-    size_t operator()(const egg::string& s) const {
+struct hash<Egg::string> {
+    size_t operator()(const Egg::string& s) const {
         return hash<std::u32string>()(s);
     }
 };

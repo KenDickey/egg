@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
  */
 
@@ -32,7 +32,7 @@ public:
     void literalValue_(LiteralValue&& v) { _litValue = std::move(v); }
     
     // Backwards‑compatible string accessors
-    egg::string value() const { return _litValue.printString(); }
+    Egg::string value() const { return _litValue.printString(); }
     void value_(const LiteralValue& v) { _litValue = v; }
     
     void beSymbol_() { _litValue.tag = LiteralValue::Symbol; }

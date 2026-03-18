@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
  */
 
@@ -26,7 +26,7 @@ public:
     
 private:
     Type _type;
-    egg::string _name;
+    Egg::string _name;
     int _primitiveNumber; // For primitive pragmas
     void* _info; // For FFI descriptors (placeholder for now)
     
@@ -40,8 +40,8 @@ public:
     Type type() const { return _type; }
     void type_(Type t) { _type = t; }
     
-    egg::string name() const { return _name; }
-    void name_(const egg::string& n) { _name = n; }
+    Egg::string name() const { return _name; }
+    void name_(const Egg::string& n) { _name = n; }
     
     int primitiveNumber() const { return _primitiveNumber; }
     void primitiveNumber_(int n) { _primitiveNumber = n; }
@@ -55,19 +55,19 @@ public:
     bool isSymbolic() const { return _type == Type::Symbolic; }
     bool isUsed() const { return _type != Type::None; }
     
-    void bePrimitive_(int number, const egg::string& name) {
+    void bePrimitive_(int number, const Egg::string& name) {
         _type = Type::Primitive;
         _primitiveNumber = number;
         _name = name;
     }
     
-    void beFFI_(const egg::string& name, void* descriptor) {
+    void beFFI_(const Egg::string& name, void* descriptor) {
         _type = Type::FFI;
         _name = name;
         _info = descriptor;
     }
     
-    void beSymbolic_(const egg::string& symbol) {
+    void beSymbolic_(const Egg::string& symbol) {
         _type = Type::Symbolic;
         _name = symbol;
     }

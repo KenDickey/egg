@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
 */
 #ifndef _BINDING_H_
@@ -28,11 +28,11 @@ public:
         Constant
     };
 
-    Binding(Kind kind, const egg::string& name, uint32_t position)
+    Binding(Kind kind, const Egg::string& name, uint32_t position)
         : _kind(kind), _name(name), _position(position) {}
 
     Kind kind() const { return _kind; }
-    const egg::string& name() const { return _name; }
+    const Egg::string& name() const { return _name; }
     uint32_t position() const { return _position; }
 
     virtual bool isDynamic() const { return false; }
@@ -52,7 +52,7 @@ public:
 
 private:
     Kind _kind;
-    egg::string _name;
+    Egg::string _name;
     uint32_t _position;
 };
 

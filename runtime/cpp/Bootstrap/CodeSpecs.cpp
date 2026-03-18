@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
  */
 
@@ -22,7 +22,7 @@ void ModuleSpec::addClass(ClassSpec* cls) {
     cls->module(this);
 }
 
-ClassSpec* ModuleSpec::resolveClass(const egg::string& name) const {
+ClassSpec* ModuleSpec::resolveClass(const Egg::string& name) const {
     auto it = _classes.find(name);
     return (it != _classes.end()) ? it->second : nullptr;
 }
@@ -37,8 +37,8 @@ ClassSpec* ClassSpec::superclass() const {
 
 // ---- MetaclassSpec ----
 
-const egg::string& MetaclassSpec::name() const {
-    static const egg::string empty;
+const Egg::string& MetaclassSpec::name() const {
+    static const Egg::string empty;
     if (!_instanceClass) return empty;
     return _instanceClass->name();
 }
@@ -60,13 +60,13 @@ uint32_t SpeciesSpec::instSize() const {
     return count;
 }
 
-std::vector<egg::string> SpeciesSpec::allInstVarNames() const {
+std::vector<Egg::string> SpeciesSpec::allInstVarNames() const {
     std::vector<const SpeciesSpec*> chain;
     for (auto s = this; s != nullptr;
          s = static_cast<const SpeciesSpec*>(s->superclass()))
         chain.push_back(s);
     std::reverse(chain.begin(), chain.end());
-    std::vector<egg::string> result;
+    std::vector<Egg::string> result;
     for (auto s : chain)
         for (auto& iv : s->instVarNames())
             result.push_back(iv);

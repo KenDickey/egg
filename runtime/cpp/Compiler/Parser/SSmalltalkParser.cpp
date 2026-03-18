@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
  */
 
@@ -45,7 +45,7 @@ SToken* SSmalltalkParser::peek_() {
     }
     
     _next.reset(_scanner->nextToken().release());
-    std::vector<egg::string> comments;
+    std::vector<Egg::string> comments;
     while (_next && _next->isComment()) {
         comments.push_back(_next->value());
         _next.reset(_scanner->nextToken().release());
@@ -63,7 +63,7 @@ SToken* SSmalltalkParser::peek_() {
 SToken* SSmalltalkParser::step_() {
     SToken* save = _token.get();
     next_();
-    std::vector<egg::string> comments;
+    std::vector<Egg::string> comments;
     while (_token && _token->isComment()) {
         comments.push_back(_token->value());
         next_();
@@ -182,7 +182,7 @@ SMethodNode* SSmalltalkParser::keywordSignature_() {
         return nullptr;
     }
     
-    egg::string selector;
+    Egg::string selector;
     std::vector<SIdentifierNode*> arguments;
     uint32_t start = _token->position().start();
     
@@ -508,7 +508,7 @@ SParseNode* SSmalltalkParser::keywordSequence_(SParseNode* receiver) {
 }
 
 void SSmalltalkParser::keywordMessage_(SMessageNode* message) {
-    egg::string selector;
+    Egg::string selector;
     std::vector<SParseNode*> arguments;
     uint32_t start = _token->position().start();
     while (_token && _token->isKeyword()) {
@@ -608,7 +608,7 @@ SParseNode* SSmalltalkParser::literalArray_() {
             }
         } else if (_token->isName()) {
             // pseudoLiteralValue: convert nil/true/false to actual values
-            egg::string val = _token->value();
+            Egg::string val = _token->value();
             if (val == "nil") {
                 elements.push_back(LiteralValue::nil());
             } else if (val == "true") {
@@ -620,7 +620,7 @@ SParseNode* SSmalltalkParser::literalArray_() {
             }
         } else if (_token->isKeyword()) {
             // literalKeyword: collect multi-part keyword symbol (e.g., at:put:)
-            egg::string keyword = _token->value();
+            Egg::string keyword = _token->value();
             step_();
             while (_token && _token->isKeyword()) {
                 keyword += _token->value();
@@ -740,7 +740,7 @@ bool SSmalltalkParser::attachPragmaTo_(SMethodNode* method) {
     SPragmaNode* pragma = nullptr;
     
     if (_token && _token->isKeyword()) {
-        egg::string keyword = _token->value();
+        Egg::string keyword = _token->value();
         if (keyword == "primitive:") {
             pragma = pragma_();
         } else {
@@ -797,7 +797,7 @@ SPragmaNode* SSmalltalkParser::numberedPrimitive_() {
 }
 
 SPragmaNode* SSmalltalkParser::namedPrimitive_() {
-    egg::string name = _token->value();
+    Egg::string name = _token->value();
     uint32_t position = _token->position().start();
     
     SPragmaNode* pragma = new SPragmaNode(_compiler);
@@ -809,7 +809,7 @@ SPragmaNode* SSmalltalkParser::namedPrimitive_() {
 }
 
 SPragmaNode* SSmalltalkParser::symbolicPragma_() {
-    egg::string symbol = _token->value();
+    Egg::string symbol = _token->value();
     uint32_t position = _token->position().start();
     
     SPragmaNode* pragma = new SPragmaNode(_compiler);

@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
 */
 #ifndef _SCOMPILEDMETHOD_H_
@@ -28,8 +28,8 @@ private:
     void* _optimizedCode;
     std::vector<uint8_t> _treecodes;
     void* _classBinding;
-    egg::string _selector;
-    egg::string _source;
+    Egg::string _selector;
+    Egg::string _source;
     
     // Format bit layout matching Smalltalk CompiledMethod>>initializeFormatFlags:
     // ArgCount:       bits 0-5   (6 bits)
@@ -86,11 +86,11 @@ public:
     bool isDebuggable() const;
     void beDebuggable_();
     
-    egg::string selector() const { return _selector; }
-    void selector_(const egg::string& sel) { _selector = sel; }
+    Egg::string selector() const { return _selector; }
+    void selector_(const Egg::string& sel) { _selector = sel; }
     
-    egg::string source() const { return _source; }
-    void source_(const egg::string& src) { _source = src; }
+    Egg::string source() const { return _source; }
+    void source_(const Egg::string& src) { _source = src; }
     
     void* classBinding() const { return _classBinding; }
     void classBinding_(void* binding) { _classBinding = binding; }

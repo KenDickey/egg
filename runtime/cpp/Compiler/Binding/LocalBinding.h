@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
 */
 #ifndef _LOCALBINDING_H_
@@ -22,7 +22,7 @@ protected:
     SIdentifierNode* _declaration;
     
 public:
-    LocalBinding(Kind kind, const egg::string& name, uint32_t position)
+    LocalBinding(Kind kind, const Egg::string& name, uint32_t position)
         : Binding(kind, name, position), _index(-1), _environment(nullptr), _declaration(nullptr) {}
     
     virtual ~LocalBinding() { 

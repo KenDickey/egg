@@ -31,7 +31,7 @@ void TreecodeEncoder::visitMethod_(SMethodNode* node) {
     
     if (node->pragma() && node->pragma()->isUsed()) {
         nextTypePut(PragmaId);
-        const egg::string& pragmaName = node->pragma()->name();
+        const Egg::string& pragmaName = node->pragma()->name();
         if (!pragmaName.empty()) {
             nextSymbolPut(pragmaName);
         } else {
@@ -75,7 +75,7 @@ void TreecodeEncoder::visitMessage_(SMessageNode* node) {
     
     nextBooleanPut(node->isInlined());
     
-    egg::string selectorStr = node->selector()->symbol();
+    Egg::string selectorStr = node->selector()->symbol();
     nextSymbolPut(selectorStr);
     
     if (node->receiver()) {
@@ -164,7 +164,7 @@ void TreecodeEncoder::visitCascade_(SCascadeNode* node) {
     nextIntegerPut(messages.size());
     
     for (auto* msg : messages) {
-        egg::string selectorStr = msg->selector()->symbol();
+        Egg::string selectorStr = msg->selector()->symbol();
        
         nextSymbolPut(selectorStr);
         
@@ -242,14 +242,14 @@ void TreecodeEncoder::nextBooleanPut(bool value) {
     nextPut(value ? 1 : 0);
 }
 
-void TreecodeEncoder::nextSymbolPut(const egg::string& symbol) {
+void TreecodeEncoder::nextSymbolPut(const Egg::string& symbol) {
     auto symLv = LiteralValue::fromSymbol(symbol);
     int index = _method->indexOf(symLv);
     ASSERT(index != 0);
     nextIntegerPut(index);
 }
 
-void TreecodeEncoder::nextLiteralPut(const egg::string& literal) {
+void TreecodeEncoder::nextLiteralPut(const Egg::string& literal) {
     auto litLv = LiteralValue::fromString(literal);
     int index = _method->indexOf(litLv);
     ASSERT(index != 0);
@@ -333,12 +333,12 @@ void TreecodeEncoder::encodePopR() {
     stream_.push_back(PopRid);
 }
 
-void TreecodeEncoder::encodeDynamicVar_(const egg::string& name) {
+void TreecodeEncoder::encodeDynamicVar_(const Egg::string& name) {
     stream_.push_back(DynamicVarId);
     nextSymbolPut(name);
 }
 
-void TreecodeEncoder::encodeNestedDynamicVar_(const egg::string& name) {
+void TreecodeEncoder::encodeNestedDynamicVar_(const Egg::string& name) {
     stream_.push_back(NestedDynamicVarId);
     nextLiteralPut(name);
 }

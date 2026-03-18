@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
 */
 #ifndef _ARGUMENTBINDING_H_
@@ -11,7 +11,7 @@ namespace Egg {
 
 class ArgumentBinding : public LocalBinding {
 public:
-    ArgumentBinding(const egg::string& name, uint32_t position)
+    ArgumentBinding(const Egg::string& name, uint32_t position)
         : LocalBinding(Kind::Argument, name, position) {
         _environment = new ArgumentEnvironment();
     }

@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
  */
 
@@ -18,7 +18,7 @@ namespace Egg {
  */
 class SSelectorNode : public SParseNode {
 private:
-    egg::string _symbol;
+    Egg::string _symbol;
     std::vector<SSelectorNode*> _keywords; // For keyword selectors with multiple parts
     
 public:
@@ -27,8 +27,8 @@ public:
     
     void acceptVisitor_(SParseNodeVisitor* visitor) override;
     
-    egg::string symbol() const { return _symbol; }
-    void symbol_(const egg::string& s) { _symbol = s; }
+    Egg::string symbol() const { return _symbol; }
+    void symbol_(const Egg::string& s) { _symbol = s; }
     
     const std::vector<SSelectorNode*>& keywords() const { return _keywords; }
     void addKeyword_(SSelectorNode* kw) { _keywords.push_back(kw); }
@@ -37,7 +37,7 @@ public:
     bool isBinary() const;
     bool hasSymbol() const { return !_symbol.empty(); }
     
-    egg::string value() const { return _symbol; }
+    Egg::string value() const { return _symbol; }
     
     void nodesDo_(std::function<void(SParseNode*)> block, bool includeDeclarations = false) override {
         SParseNode::nodesDo_(block, includeDeclarations);

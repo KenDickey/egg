@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
  */
 
@@ -88,7 +88,7 @@ std::vector<LiteralValue> SMethodNode::literals() {
     
     // Add pragma name if used
     if (_pragma && _pragma->isUsed()) {
-        const egg::string& pragmaName = _pragma->name();
+        const Egg::string& pragmaName = _pragma->name();
         if (!pragmaName.empty()) {
             addUnique(LiteralValue::fromSymbol(pragmaName));
         }
@@ -191,7 +191,7 @@ bool SMethodNode::needsFrame() const {
     return false;
 }
 
-egg::string SMethodNode::selectorString() const {
+Egg::string SMethodNode::selectorString() const {
     return _selector ? _selector->symbol() : "";
 }
 

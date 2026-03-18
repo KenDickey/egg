@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
 
     Stream-based Tonel reader modelled after modules/Tonel/TonelReader.st.
@@ -38,11 +38,11 @@ void TonelReader::skipLine() {
 // ── Tonel structure ──────────────────────────────────────────────────
 
 ClassSpec* TonelReader::parseFile(const std::string& utf8Source) {
-    _source = egg::string(utf8Source);
+    _source = Egg::string(utf8Source);
     _pos = 0;
 
     readComments();
-    egg::string type = readType();
+    Egg::string type = readType();
     auto fields = readDefinition();
 
     auto* spec = new ClassSpec();
@@ -50,14 +50,14 @@ ClassSpec* TonelReader::parseFile(const std::string& utf8Source) {
     meta->instanceClass(spec);
     spec->metaclass(meta);
 
-    spec->name(fields.count("name") ? fields["name"] : egg::string(""));
+    spec->name(fields.count("name") ? fields["name"] : Egg::string(""));
     if (type == "Class") {
-        spec->supername(fields.count("superclass") ? fields["superclass"] : egg::string(""));
+        spec->supername(fields.count("superclass") ? fields["superclass"] : Egg::string(""));
     }
 
     // #type field: #variable (pointer-indexed), #bytes (byte-indexed)
     if (fields.count("type")) {
-        egg::string t = fields["type"];
+        Egg::string t = fields["type"];
         if (t == "variable") {
             spec->isVariable(true);
             spec->isPointers(true);
@@ -69,13 +69,13 @@ ClassSpec* TonelReader::parseFile(const std::string& utf8Source) {
 
     // instVars / classVars / classInstVars are parsed from the STON array
     // already stored as comma-separated names during parseSTONArray()
-    auto splitNames = [](const egg::string& csv) -> std::vector<egg::string> {
-        std::vector<egg::string> out;
+    auto splitNames = [](const Egg::string& csv) -> std::vector<Egg::string> {
+        std::vector<Egg::string> out;
         if (csv.empty()) return out;
         size_t start = 0;
         while (start < csv.length()) {
             size_t comma = csv.find(U',', start);
-            if (comma == egg::string::npos) comma = csv.length();
+            if (comma == Egg::string::npos) comma = csv.length();
             if (comma > start)
                 out.push_back(csv.substr(start, comma - start));
             start = comma + 1;
@@ -104,7 +104,7 @@ void TonelReader::readComments() {
 }
 
 // Mirrors TonelReader >> readType  (via ReadStream >> nextWordOrNumber)
-egg::string TonelReader::readType() {
+Egg::string TonelReader::readType() {
     skipSeparators();
     size_t start = _pos;
     while (!atEnd() && ((_source[_pos] >= U'A' && _source[_pos] <= U'Z') ||
@@ -115,7 +115,7 @@ egg::string TonelReader::readType() {
 }
 
 // Mirrors TonelReader >> readDefinition  (parses STON map)
-std::map<egg::string, egg::string> TonelReader::readDefinition() {
+std::map<Egg::string, Egg::string> TonelReader::readDefinition() {
     skipSeparators();
     return parseSTONMap();
 }
@@ -138,10 +138,10 @@ void TonelReader::readMethod(ClassSpec* spec, MetaclassSpec* meta) {
     // 2. ClassName [class] >> selector...signature [
     skipSeparators();
     // Read up to " >> "
-    egg::string className;
+    Egg::string className;
     {
-        size_t sepPos = _source.find(egg::string(" >> "), _pos);
-        if (sepPos == egg::string::npos) return;
+        size_t sepPos = _source.find(Egg::string(" >> "), _pos);
+        if (sepPos == Egg::string::npos) return;
         className = _source.substr(_pos, sepPos - _pos);
         _pos = sepPos + 4; // skip " >> "
     }
@@ -152,17 +152,17 @@ void TonelReader::readMethod(ClassSpec* spec, MetaclassSpec* meta) {
 
     bool isClassSide = false;
     if (className.length() > 6) {
-        egg::string tail = className.substr(className.length() - 5, 5);
+        Egg::string tail = className.substr(className.length() - 5, 5);
         if (tail == "class" &&
             (className.length() == 5 || className[className.length() - 6] == U' '))
             isClassSide = true;
     }
 
     // 3. Read signature up to [
-    egg::string signature;
+    Egg::string signature;
     {
         size_t bracketPos = _source.find(U'[', _pos);
-        if (bracketPos == egg::string::npos) return;
+        if (bracketPos == Egg::string::npos) return;
         signature = _source.substr(_pos, bracketPos - _pos);
         _pos = bracketPos + 1; // skip '['
     }
@@ -175,10 +175,10 @@ void TonelReader::readMethod(ClassSpec* spec, MetaclassSpec* meta) {
         signature.erase(signature.begin());
 
     // 4. Read body via nextBlock (we already consumed the '[')
-    egg::string body = nextBlock();
+    Egg::string body = nextBlock();
 
     // 5. Build method source = signature \n\t body
-    egg::string methodSource = signature + "\n\t" + body;
+    Egg::string methodSource = signature + "\n\t" + body;
 
     if (isClassSide)
         meta->addMethod(MethodSpec(methodSource));
@@ -191,7 +191,7 @@ void TonelReader::readMethod(ClassSpec* spec, MetaclassSpec* meta) {
 // Called after the opening '[' has already been consumed.
 // Reads until the matching ']', handling nesting and literals.
 
-egg::string TonelReader::nextBlock() {
+Egg::string TonelReader::nextBlock() {
     // Skip the rest of the line that contained '['
     size_t bodyStart = _pos;
     while (bodyStart < _source.length() &&
@@ -224,7 +224,7 @@ egg::string TonelReader::nextBlock() {
            _source[bodyEnd - 1] == U'\t'))
         bodyEnd--;
 
-    if (bodyEnd <= bodyStart) return egg::string("");
+    if (bodyEnd <= bodyStart) return Egg::string("");
     return _source.substr(bodyStart, bodyEnd - bodyStart);
 }
 
@@ -258,8 +258,8 @@ void TonelReader::skipToMatch(char32_t ch) {
 // ── Minimal STON parser ──────────────────────────────────────────────
 // Just enough to parse Tonel definition headers and method metadata.
 
-std::map<egg::string, egg::string> TonelReader::parseSTONMap() {
-    std::map<egg::string, egg::string> map;
+std::map<Egg::string, Egg::string> TonelReader::parseSTONMap() {
+    std::map<Egg::string, Egg::string> map;
     skipSeparators();
     if (atEnd() || peek() != U'{') return map;
     next(); // skip '{'
@@ -268,11 +268,11 @@ std::map<egg::string, egg::string> TonelReader::parseSTONMap() {
         skipSeparators();
         if (atEnd() || peek() == U'}') { if (!atEnd()) next(); break; }
 
-        egg::string key = parseSTONValue();
+        Egg::string key = parseSTONValue();
         skipSeparators();
         if (!atEnd() && peek() == U':') next(); // skip ':'
         skipSeparators();
-        egg::string value = parseSTONValue();
+        Egg::string value = parseSTONValue();
 
         map[key] = value;
 
@@ -282,7 +282,7 @@ std::map<egg::string, egg::string> TonelReader::parseSTONMap() {
     return map;
 }
 
-egg::string TonelReader::parseSTONValue() {
+Egg::string TonelReader::parseSTONValue() {
     skipSeparators();
     if (atEnd()) return "";
     char32_t ch = peek();
@@ -291,7 +291,7 @@ egg::string TonelReader::parseSTONValue() {
     if (ch == U'[') {
         auto arr = parseSTONArray();
         // Encode as comma-separated string for ClassSpec consumption
-        egg::string result;
+        Egg::string result;
         for (size_t i = 0; i < arr.size(); i++) {
             if (i > 0) result += ",";
             result += arr[i];
@@ -306,7 +306,7 @@ egg::string TonelReader::parseSTONValue() {
     return _source.substr(start, _pos - start);
 }
 
-egg::string TonelReader::parseSTONSymbol() {
+Egg::string TonelReader::parseSTONSymbol() {
     next(); // skip '#'
     if (!atEnd() && peek() == U'\'') return parseSTONString(); // #'foo bar'
     size_t start = _pos;
@@ -317,9 +317,9 @@ egg::string TonelReader::parseSTONSymbol() {
     return _source.substr(start, _pos - start);
 }
 
-egg::string TonelReader::parseSTONString() {
+Egg::string TonelReader::parseSTONString() {
     next(); // skip opening '
-    egg::string result;
+    Egg::string result;
     while (!atEnd()) {
         char32_t c = next();
         if (c == U'\'') {
@@ -336,8 +336,8 @@ egg::string TonelReader::parseSTONString() {
     return result;
 }
 
-std::vector<egg::string> TonelReader::parseSTONArray() {
-    std::vector<egg::string> arr;
+std::vector<Egg::string> TonelReader::parseSTONArray() {
+    std::vector<Egg::string> arr;
     next(); // skip '['
     while (true) {
         skipSeparators();

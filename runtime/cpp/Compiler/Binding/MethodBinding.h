@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
 */
 #ifndef _METHODBINDING_H_
@@ -10,7 +10,7 @@ namespace Egg {
 
 class MethodBinding : public Binding {
 public:
-    MethodBinding(const egg::string& name, uint32_t position)
+    MethodBinding(const Egg::string& name, uint32_t position)
         : Binding(Kind::Method, name, position) {}
     
     Binding* copy_() override {

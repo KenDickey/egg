@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
  */
 
@@ -20,11 +20,11 @@ void SSmalltalkScanner::compiler_(SSmalltalkCompiler* compiler) {
     _compiler = compiler;
 }
 
-void SSmalltalkScanner::on_(const egg::string& source) {
+void SSmalltalkScanner::on_(const Egg::string& source) {
     stream.on_(source);
 }
 
-void SSmalltalkScanner::sourceCode_(const egg::string& source) {
+void SSmalltalkScanner::sourceCode_(const Egg::string& source) {
     stream.on_(source);
 }
 
@@ -72,27 +72,27 @@ bool SSmalltalkScanner::isBinary_(uint32_t ch) const {
 }
 
 std::unique_ptr<SDelimiterToken> SSmalltalkScanner::nextArrayPrefix() {
-    egg::string string = stream.copyFrom_to_(stream.position() - 2, stream.position());
+    Egg::string string = stream.copyFrom_to_(stream.position() - 2, stream.position());
     auto token = new SDelimiterToken(Stretch(0, 0), U"");
     return buildToken_at_with_(token, stream.position() - 2, string);
 }
 
 std::unique_ptr<SDelimiterToken> SSmalltalkScanner::nextAssignment() {
     auto token = new SDelimiterToken(Stretch(0, 0), U"");
-    return buildToken_at_with_(token, stream.position(), egg::string(U":="));
+    return buildToken_at_with_(token, stream.position(), Egg::string(U":="));
 }
 
 std::unique_ptr<SSymbolicToken> SSmalltalkScanner::nextBinarySelector() {
     stream.back();
     size_t start = stream.position();
-    egg::string value = scanBinarySymbol();
+    Egg::string value = scanBinarySymbol();
     auto token = new SSymbolicToken(Stretch(0, 0), U"", true);
     return buildToken_at_with_(token, start, value);
 }
 
 std::unique_ptr<SStringToken> SSmalltalkScanner::nextBinarySymbol() {
     size_t start = stream.position();
-    egg::string value = scanBinarySymbol();
+    Egg::string value = scanBinarySymbol();
     auto token = new SStringToken(Stretch(0, 0), U"", SStringToken::LitSymbol);
     return buildToken_at_with_(token, start, value);
 }
@@ -136,7 +136,7 @@ std::unique_ptr<SToken> SSmalltalkScanner::nextComment() {
     }
     
     stream.position_(start);
-    egg::string comment = stream.upTo_('"');
+    Egg::string comment = stream.upTo_('"');
     
     return nextToken();
 }
@@ -158,7 +158,7 @@ std::unique_ptr<SSymbolicToken> SSmalltalkScanner::nextIdentifierOrKeyword() {
 std::unique_ptr<SStringToken> SSmalltalkScanner::nextKeyword() {
     size_t start = stream.position();
     skipKeyword();
-    egg::string string = stream.copyFrom_to_(start, stream.position());
+    Egg::string string = stream.copyFrom_to_(start, stream.position());
     auto token = new SStringToken(Stretch(0, 0), U"", SStringToken::LitSymbol);
     return buildToken_at_with_(token, start, string);
 }
@@ -168,14 +168,14 @@ std::unique_ptr<SStringToken> SSmalltalkScanner::nextLiteralCharacter() {
         error_("character expected");
     }
     uint32_t cp = stream.next();
-    egg::string value(1, (char32_t)cp);
+    Egg::string value(1, (char32_t)cp);
     auto token = new SStringToken(Stretch(0, 0), U"", SStringToken::LitCharacter);
     return buildToken_at_with_(token, stream.position(), value);
 }
 
 std::unique_ptr<SStringToken> SSmalltalkScanner::nextLiteralString() {
     size_t start = stream.position();
-    egg::string value = scanString();
+    Egg::string value = scanString();
     auto token = new SStringToken(Stretch(0, 0), U"");
     return buildToken_at_with_(token, start, value);
 }
@@ -236,7 +236,7 @@ std::unique_ptr<SStringToken> SSmalltalkScanner::nextNumber() {
         }
     }
     
-    egg::string value = stream.copyFrom_to_(start, stream.position());
+    Egg::string value = stream.copyFrom_to_(start, stream.position());
     auto token = new SStringToken(Stretch(0, 0), U"", SStringToken::LitNumber);
     return buildToken_at_with_(token, start, value);
 }
@@ -328,10 +328,10 @@ std::unique_ptr<SToken> SSmalltalkScanner::nextToken() {
     return nextSpecialCharacter();
 }
 
-egg::string SSmalltalkScanner::scanBinarySymbol() {
+Egg::string SSmalltalkScanner::scanBinarySymbol() {
     size_t start = stream.position();
     skipBinary();
-    egg::string symbol = stream.copyFrom_to_(start, stream.position());
+    Egg::string symbol = stream.copyFrom_to_(start, stream.position());
     return symbol;
 }
 
@@ -349,13 +349,13 @@ uint32_t SSmalltalkScanner::scanChar() {
     return stream.next();
 }
 
-egg::string SSmalltalkScanner::scanString() {
+Egg::string SSmalltalkScanner::scanString() {
     size_t current = stream.position();
     size_t start = current;
-    egg::string result;
+    Egg::string result;
     
     while (true) {
-        egg::string fragment = stream.upTo_('\'');
+        Egg::string fragment = stream.upTo_('\'');
         result += fragment;
         
         if (current < stream.position()) {

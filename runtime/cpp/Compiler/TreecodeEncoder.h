@@ -75,8 +75,8 @@ public:
     void encodeSuper();
     void encodePushR();
     void encodePopR();
-    void encodeDynamicVar_(const egg::string& name);
-    void encodeNestedDynamicVar_(const egg::string& name);
+    void encodeDynamicVar_(const Egg::string& name);
+    void encodeNestedDynamicVar_(const Egg::string& name);
     void encodeArgument_env_(int index, LocalEnvironment* environment);
     void encodeTemporary_env_(int index, LocalEnvironment* environment);
     
@@ -90,8 +90,8 @@ private:
     void nextIntegerPut(int64_t value);
     void nextBigIntegerPut(int64_t value);
     void nextBooleanPut(bool value);
-    void nextSymbolPut(const egg::string& symbol);
-    void nextLiteralPut(const egg::string& literal);
+    void nextSymbolPut(const Egg::string& symbol);
+    void nextLiteralPut(const Egg::string& literal);
     void nextTypePut(uint8_t typeId);
     
     int encodedEnvironment_(LocalEnvironment* environment);

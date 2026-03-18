@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
 */
 #ifndef _CLASSBINDING_H_
@@ -10,7 +10,7 @@ namespace Egg {
 
 class ClassBinding : public Binding {
 public:
-    ClassBinding(const egg::string& name, uint32_t position)
+    ClassBinding(const Egg::string& name, uint32_t position)
         : Binding(Kind::Class, name, position) {}
     
     Binding* copy_() override {

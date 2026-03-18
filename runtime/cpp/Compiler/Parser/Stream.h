@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
  */
 
@@ -9,20 +9,20 @@
 #include <string>
 #include <cstddef>
 #include <cstdint>
-#include "../egg_string.h"
+#include "Utils/egg_string.h"
 
 namespace Egg {
 
 class Stream {
 private:
-    egg::string _source;
+    Egg::string _source;
     size_t _position;
 
 public:
     Stream() : _position(0) {}
-    explicit Stream(const egg::string& source) : _source(source), _position(0) {}
+    explicit Stream(const Egg::string& source) : _source(source), _position(0) {}
     
-    void on_(const egg::string& source) {
+    void on_(const Egg::string& source) {
         _source = source;
         _position = 0;
     }
@@ -53,18 +53,18 @@ public:
         _position = pos;
     }
     
-    egg::string copyFrom_to_(size_t start, size_t end) const {
+    Egg::string copyFrom_to_(size_t start, size_t end) const {
         if (end > _source.length()) end = _source.length();
         if (start > end) return "";
         return _source.substr(start, end - start);
     }
     
-    egg::string upTo_(uint32_t delimiter) {
+    Egg::string upTo_(uint32_t delimiter) {
         size_t start = _position;
         while (!atEnd() && peek() != delimiter) {
             next();
         }
-        egg::string result = copyFrom_to_(start, _position);
+        Egg::string result = copyFrom_to_(start, _position);
         if (!atEnd() && peek() == delimiter) {
             next();
         }

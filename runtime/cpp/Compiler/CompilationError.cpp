@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
  */
 
@@ -9,7 +9,7 @@
 
 namespace Egg {
 
-CompilationError::CompilationError(const egg::string& desc)
+CompilationError::CompilationError(const Egg::string& desc)
     : std::runtime_error(desc.toUtf8()), _compiler(nullptr), _resumable(false), _retryable(false), _stretch(nullptr), _description(desc) {
 }
 
@@ -40,9 +40,9 @@ void CompilationError::proceed() {
     }
 }
 
-egg::string CompilationError::source() {
+Egg::string CompilationError::source() {
     if (!_compiler || !_stretch) return "";
-    egg::string sourceCode = _compiler->sourceCode();
+    Egg::string sourceCode = _compiler->sourceCode();
     int start = _stretch->start();
     int end = _stretch->end();
     if (start < 0 || end > static_cast<int>(sourceCode.length()) || start > end) {

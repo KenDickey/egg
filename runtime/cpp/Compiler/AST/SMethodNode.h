@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
  */
 
@@ -48,7 +48,7 @@ public:
     SCompiledMethod* methodClass();
     bool needsEnvironment() const;
     bool needsFrame() const;
-    egg::string selectorString() const;
+    Egg::string selectorString() const;
     
     void nodesDo_(std::function<void(SParseNode*)> block, bool includeDeclarations = false) override;
 };

@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
 */
 #ifndef _TEMPORARYBINDING_H_
@@ -11,7 +11,7 @@ namespace Egg {
 
 class TemporaryBinding : public LocalBinding {
 public:
-    TemporaryBinding(const egg::string& name, uint32_t position)
+    TemporaryBinding(const Egg::string& name, uint32_t position)
         : LocalBinding(Kind::Temporary, name, position) {
         _environment = new StackEnvironment();
     }

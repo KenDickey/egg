@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
  */
 
@@ -28,7 +28,7 @@ class SParseNode {
 protected:
     Stretch _position;
     SSmalltalkCompiler* _compiler;
-    std::vector<egg::string> _comments;
+    std::vector<Egg::string> _comments;
     
 public:
     SParseNode(SSmalltalkCompiler* compiler) : _compiler(compiler) {}
@@ -36,12 +36,12 @@ public:
     
     virtual void allNodesDo_includingDeclarations_(std::function<void(SParseNode*)> block);
     virtual SParseNode* nodesDetect_(std::function<bool(SParseNode*)> predicate, std::function<SParseNode*()> ifAbsent);
-    virtual SParseNode* nodeWithLiteral_(const egg::string& value);
-    virtual SParseNode* variableNamed_(const egg::string& name);
+    virtual SParseNode* nodeWithLiteral_(const Egg::string& value);
+    virtual SParseNode* variableNamed_(const Egg::string& name);
     virtual bool isMethodArgument() const;
     virtual bool isMethodTemporary() const;
-    virtual bool valueEquals_(const egg::string&) const;
-    virtual bool nameEquals_(const egg::string&) const;
+    virtual bool valueEquals_(const Egg::string&) const;
+    virtual bool nameEquals_(const Egg::string&) const;
     
     virtual SParseNode* ast();
     
@@ -52,7 +52,7 @@ public:
     
     SSmalltalkCompiler* compiler() const { return _compiler; }
     
-    void addComment_(const egg::string& comment) {
+    void addComment_(const Egg::string& comment) {
         _comments.push_back(comment);
     }
     

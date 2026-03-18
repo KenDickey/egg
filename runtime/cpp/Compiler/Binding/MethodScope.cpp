@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
 */
 #include "MethodScope.h"
@@ -39,7 +39,7 @@ int* MethodScope::environmentIndexOf_(SScriptNode* aScriptNode) {
     return nullptr;
 }
 
-Binding* MethodScope::resolve_(const egg::string& aString) {
+Binding* MethodScope::resolve_(const Egg::string& aString) {
     auto local = resolveLocal_(aString);
     if (local) return local;
     
@@ -49,12 +49,12 @@ Binding* MethodScope::resolve_(const egg::string& aString) {
     return DynamicBinding::named_(aString);
 }
 
-Binding* MethodScope::resolvePseudo_(const egg::string& aString) {
+Binding* MethodScope::resolvePseudo_(const Egg::string& aString) {
     auto it = _pseudo.find(aString);
     return (it != _pseudo.end()) ? it->second : nullptr;
 }
 
-SScriptNode* MethodScope::scriptDefining_(const egg::string& aString) {
+SScriptNode* MethodScope::scriptDefining_(const Egg::string& aString) {
     if (resolveLocal_(aString)) {
         return _script;
     }
@@ -62,7 +62,7 @@ SScriptNode* MethodScope::scriptDefining_(const egg::string& aString) {
     return nullptr;
 }
 
-Binding* MethodScope::transferLocal_(const egg::string& name) {
+Binding* MethodScope::transferLocal_(const Egg::string& name) {
     return resolveLocal_(name);
 }
 

@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
 */
 #ifndef _SCRIPTSCOPE_H_
@@ -23,14 +23,14 @@ class TemporaryBinding;
 class ScriptScope : public Scope {
 protected:
     SScriptNode* _script;
-    std::map<egg::string, Binding*> _arguments;
-    std::vector<egg::string> _argumentOrder;
-    std::map<egg::string, Binding*> _temporaries;
+    std::map<Egg::string, Binding*> _arguments;
+    std::vector<Egg::string> _argumentOrder;
+    std::map<Egg::string, Binding*> _temporaries;
     int _stackSize;
     int _envSize;
     bool _captureSelf;
     
-    void redefinitionError_(const egg::string& name);
+    void redefinitionError_(const Egg::string& name);
     
 public:
     ScriptScope();
@@ -44,11 +44,11 @@ public:
     int growEnvironment_() { return ++_envSize; }
     int growStack_() { return ++_stackSize; }
     
-    Binding* defineArgument_(const egg::string& identifier) override;
-    Binding* defineTemporary_(const egg::string& identifier) override;
-    bool defines_(const egg::string& aString);
-    Binding* resolveLocal_(const egg::string& aString);
-    bool resolves_(const egg::string& aString);
+    Binding* defineArgument_(const Egg::string& identifier) override;
+    Binding* defineTemporary_(const Egg::string& identifier) override;
+    bool defines_(const Egg::string& aString);
+    Binding* resolveLocal_(const Egg::string& aString);
+    bool resolves_(const Egg::string& aString);
     virtual std::vector<Binding*> localBindings_();
     
     virtual void positionLocals_();
@@ -60,9 +60,9 @@ public:
     virtual Binding* captureLocal_(Binding* aLocalBinding);
     virtual void captureSelf_();
     virtual int* environmentIndexOf_(SScriptNode* aScriptNode);
-    virtual Binding* resolve_(const egg::string& aString) = 0;
-    virtual SScriptNode* scriptDefining_(const egg::string& aString) = 0;
-    virtual Binding* transferLocal_(const egg::string& name);
+    virtual Binding* resolve_(const Egg::string& aString) = 0;
+    virtual SScriptNode* scriptDefining_(const Egg::string& aString) = 0;
+    virtual Binding* transferLocal_(const Egg::string& name);
     virtual ScriptScope* realScope_();
 };
 

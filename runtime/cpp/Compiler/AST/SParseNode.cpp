@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
  */
 
@@ -25,7 +25,7 @@ SParseNode* SParseNode::nodesDetect_(std::function<bool(SParseNode*)> predicate,
     return found ? found : ifAbsent();
 }
 
-SParseNode* SParseNode::nodeWithLiteral_(const egg::string& value) {
+SParseNode* SParseNode::nodeWithLiteral_(const Egg::string& value) {
     return nodesDetect_([
         &value
     ](SParseNode* n) {
@@ -33,7 +33,7 @@ SParseNode* SParseNode::nodeWithLiteral_(const egg::string& value) {
     }, []() { return nullptr; });
 }
 
-SParseNode* SParseNode::variableNamed_(const egg::string& name) {
+SParseNode* SParseNode::variableNamed_(const Egg::string& name) {
     SParseNode* result = nullptr;
     allNodesDo_includingDeclarations_([&](SParseNode* node) {
         if (node->isIdentifier() && node->nameEquals_(name)) result = node;
@@ -41,8 +41,8 @@ SParseNode* SParseNode::variableNamed_(const egg::string& name) {
     return result;
 }
 
-bool SParseNode::valueEquals_(const egg::string&) const { return false; }
-bool SParseNode::nameEquals_(const egg::string&) const { return false; }
+bool SParseNode::valueEquals_(const Egg::string&) const { return false; }
+bool SParseNode::nameEquals_(const Egg::string&) const { return false; }
 bool SParseNode::isMethodArgument() const { return false; }
 bool SParseNode::isMethodTemporary() const { return false; }
 

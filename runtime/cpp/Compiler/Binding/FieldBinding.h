@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
 */
 #ifndef _FIELDBINDING_H_
@@ -10,7 +10,7 @@ namespace Egg {
 
 class FieldBinding : public Binding {
 public:
-    FieldBinding(const egg::string& name, uint32_t position)
+    FieldBinding(const Egg::string& name, uint32_t position)
         : Binding(Kind::Field, name, position) {}
     
     Binding* copy_() override {

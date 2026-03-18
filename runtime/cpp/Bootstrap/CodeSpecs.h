@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
  
     C++ port of modules/CodeSpecs/*.st — only the subset needed
@@ -12,7 +12,7 @@
 #include <vector>
 #include <map>
 #include <cstdint>
-#include "../Compiler/egg_string.h"
+#include "Utils/egg_string.h"
 
 namespace Egg {
 
@@ -26,13 +26,13 @@ class ModuleSpec;
 class MethodSpec {
 public:
     MethodSpec() = default;
-    MethodSpec(const egg::string& source) : _source(source) {}
+    MethodSpec(const Egg::string& source) : _source(source) {}
 
-    const egg::string& source() const { return _source; }
-    void source(const egg::string& s) { _source = s; }
+    const Egg::string& source() const { return _source; }
+    void source(const Egg::string& s) { _source = s; }
 
 private:
-    egg::string _source;
+    Egg::string _source;
 };
 
 // ---- SpeciesSpec (base for ClassSpec and MetaclassSpec) ----
@@ -48,8 +48,8 @@ public:
     SpeciesSpec() : _format(0), _module(nullptr) {}
     virtual ~SpeciesSpec() = default;
 
-    const std::vector<egg::string>& instVarNames() const { return _instanceVariables; }
-    void instVarNames(const std::vector<egg::string>& ivars) { _instanceVariables = ivars; }
+    const std::vector<Egg::string>& instVarNames() const { return _instanceVariables; }
+    void instVarNames(const std::vector<Egg::string>& ivars) { _instanceVariables = ivars; }
     int format() const { return _format; }
     void beArrayed() { _format |= IsArrayed; }
     void beBytes()   { _format |= IsBytes; }
@@ -62,14 +62,14 @@ public:
     ModuleSpec* module() const { return _module; }
     void module(ModuleSpec* m) { _module = m; }
 
-    virtual const egg::string& name() const = 0;
+    virtual const Egg::string& name() const = 0;
     virtual ClassSpec* superclass() const = 0;
 
     uint32_t instSize() const;
-    std::vector<egg::string> allInstVarNames() const;
+    std::vector<Egg::string> allInstVarNames() const;
 
 protected:
-    std::vector<egg::string> _instanceVariables;
+    std::vector<Egg::string> _instanceVariables;
     std::vector<MethodSpec> _methods;
     int _format;
     ModuleSpec* _module;
@@ -85,7 +85,7 @@ public:
     ClassSpec* instanceClass() const { return _instanceClass; }
     void instanceClass(ClassSpec* cls) { _instanceClass = cls; }
 
-    const egg::string& name() const override;
+    const Egg::string& name() const override;
     ClassSpec* superclass() const override;
 
 private:
@@ -99,11 +99,11 @@ class ClassSpec : public SpeciesSpec {
 public:
     ClassSpec() : _metaclass(nullptr), _variable(false), _pointers(true) {}
 
-    const egg::string& name() const override { return _name; }
-    void name(const egg::string& n) { _name = n; }
+    const Egg::string& name() const override { return _name; }
+    void name(const Egg::string& n) { _name = n; }
 
-    const egg::string& supername() const { return _supername; }
-    void supername(const egg::string& s) { _supername = s; }
+    const Egg::string& supername() const { return _supername; }
+    void supername(const Egg::string& s) { _supername = s; }
 
     ClassSpec* superclass() const override;
 
@@ -115,16 +115,16 @@ public:
     bool isPointers() const { return _pointers; }
     void isPointers(bool p) { _pointers = p; }
 
-    const std::vector<egg::string>& classVarNames() const { return _classVarNames; }
-    void classVarNames(const std::vector<egg::string>& cvars) { _classVarNames = cvars; }
+    const std::vector<Egg::string>& classVarNames() const { return _classVarNames; }
+    void classVarNames(const std::vector<Egg::string>& cvars) { _classVarNames = cvars; }
 
 private:
-    egg::string _name;
-    egg::string _supername;
+    Egg::string _name;
+    Egg::string _supername;
     MetaclassSpec* _metaclass;
     bool _variable;
     bool _pointers;
-    std::vector<egg::string> _classVarNames;
+    std::vector<Egg::string> _classVarNames;
 };
 
 // ---- ModuleSpec (minimal) ----
@@ -136,11 +136,11 @@ public:
     ~ModuleSpec();
 
     void addClass(ClassSpec* cls);
-    ClassSpec* resolveClass(const egg::string& name) const;
-    const std::map<egg::string, ClassSpec*>& classes() const { return _classes; }
+    ClassSpec* resolveClass(const Egg::string& name) const;
+    const std::map<Egg::string, ClassSpec*>& classes() const { return _classes; }
 
 private:
-    std::map<egg::string, ClassSpec*> _classes;
+    std::map<Egg::string, ClassSpec*> _classes;
 };
 
 } // namespace Egg

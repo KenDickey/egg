@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
  */
 
@@ -10,7 +10,7 @@
 #include <vector>
 #include <cstdint>
 #include <cassert>
-#include "egg_string.h"
+#include "Utils/egg_string.h"
 
 namespace Egg {
 
@@ -54,8 +54,8 @@ struct LiteralValue {
     };
     BlockInfo blockInfo;
 
-    // Strings and symbols share this field (union can't hold egg::string)
-    egg::string strVal;
+    // Strings and symbols share this field (union can't hold Egg::string)
+    Egg::string strVal;
 
     // For literal arrays
     std::vector<LiteralValue> elements;
@@ -84,14 +84,14 @@ struct LiteralValue {
         return lit;
     }
 
-    static LiteralValue fromString(const egg::string& v) {
+    static LiteralValue fromString(const Egg::string& v) {
         LiteralValue lit;
         lit.tag = String;
         lit.strVal = v;
         return lit;
     }
 
-    static LiteralValue fromSymbol(const egg::string& v) {
+    static LiteralValue fromSymbol(const Egg::string& v) {
         LiteralValue lit;
         lit.tag = Symbol;
         lit.strVal = v;
@@ -162,7 +162,7 @@ struct LiteralValue {
     uint32_t asCharacter() const { assert(tag == Character); return charVal; }
     bool    asBoolean() const { assert(tag == Boolean); return boolVal; }
 
-    const egg::string& asString() const {
+    const Egg::string& asString() const {
         assert(tag == String || tag == Symbol);
         return strVal;
     }
@@ -182,14 +182,14 @@ struct LiteralValue {
      * Also used as a backwards-compatible "value()" for code that
      * previously relied on the string representation.
      */
-    egg::string printString() const {
+    Egg::string printString() const {
         switch (tag) {
             case None:      return "";
-            case Integer:   return egg::string(std::to_string(intVal));
-            case Float:     return egg::string(std::to_string(floatVal));
+            case Integer:   return Egg::string(std::to_string(intVal));
+            case Float:     return Egg::string(std::to_string(floatVal));
             case String:    return strVal;
             case Symbol:    return strVal;
-            case Character: { egg::string s; s += (char32_t)charVal; return s; }
+            case Character: { Egg::string s; s += (char32_t)charVal; return s; }
             case Boolean:   return boolVal ? "true" : "false";
             case Nil:       return "nil";
             case Array:     return "#(...)";

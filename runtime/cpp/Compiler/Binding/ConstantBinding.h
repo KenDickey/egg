@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
 */
 #ifndef _CONSTANTBINDING_H_
@@ -10,7 +10,7 @@ namespace Egg {
 
 class ConstantBinding : public Binding {
 public:
-    ConstantBinding(const egg::string& name, uint32_t position)
+    ConstantBinding(const Egg::string& name, uint32_t position)
         : Binding(Kind::Constant, name, position) {}
 
     bool isLiteral() const { return true; }

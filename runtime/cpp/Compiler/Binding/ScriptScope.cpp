@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
 */
 #include "ScriptScope.h"
@@ -16,7 +16,7 @@ ScriptScope::ScriptScope()
     : Scope(), _script(nullptr), _stackSize(0), _envSize(0), _captureSelf(false) {
 }
 
-Binding* ScriptScope::defineArgument_(const egg::string& identifier) {
+Binding* ScriptScope::defineArgument_(const Egg::string& identifier) {
     if (resolves_(identifier)) {
         redefinitionError_(identifier);
     }
@@ -27,7 +27,7 @@ Binding* ScriptScope::defineArgument_(const egg::string& identifier) {
     return binding;
 }
 
-Binding* ScriptScope::defineTemporary_(const egg::string& identifier) {
+Binding* ScriptScope::defineTemporary_(const Egg::string& identifier) {
     if (_temporaries.find(identifier) != _temporaries.end()) {
         redefinitionError_(identifier);
     }
@@ -37,12 +37,12 @@ Binding* ScriptScope::defineTemporary_(const egg::string& identifier) {
     return binding;
 }
 
-bool ScriptScope::defines_(const egg::string& aString) {
+bool ScriptScope::defines_(const Egg::string& aString) {
     return _temporaries.find(aString) != _temporaries.end() ||
            _arguments.find(aString) != _arguments.end();
 }
 
-Binding* ScriptScope::resolveLocal_(const egg::string& aString) {
+Binding* ScriptScope::resolveLocal_(const Egg::string& aString) {
     auto it = _temporaries.find(aString);
     if (it != _temporaries.end()) {
         return it->second;
@@ -54,7 +54,7 @@ Binding* ScriptScope::resolveLocal_(const egg::string& aString) {
     return nullptr;
 }
 
-bool ScriptScope::resolves_(const egg::string& aString) {
+bool ScriptScope::resolves_(const Egg::string& aString) {
     auto binding = resolve_(aString);
     return binding && !binding->isDynamic();
 }
@@ -119,7 +119,7 @@ int* ScriptScope::environmentIndexOf_(SScriptNode* aScriptNode) {
     return nullptr;
 }
 
-Binding* ScriptScope::transferLocal_(const egg::string& name) {
+Binding* ScriptScope::transferLocal_(const Egg::string& name) {
     return resolveLocal_(name);
 }
 
@@ -129,7 +129,7 @@ ScriptScope* ScriptScope::realScope_() {
     return realScript ? realScript->scope() : nullptr;
 }
 
-void ScriptScope::redefinitionError_(const egg::string& name) {
+void ScriptScope::redefinitionError_(const Egg::string& name) {
     if (_script && _script->compiler()) {
         _script->compiler()->warning_at_(
             name.toUtf8() + " already declared",

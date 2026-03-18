@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
 */
 #include "PseudoVariableBindings.h"
@@ -48,15 +48,15 @@ void NestedDynamicBinding::encodeUsing_(TreecodeEncoder* encoder) {
     encoder->encodeNestedDynamicVar_(name());
 }
 
-DynamicBinding* DynamicBinding::named_(const egg::string& name) {
+DynamicBinding* DynamicBinding::named_(const Egg::string& name) {
     size_t dotPos = name.find('.');
-    if (dotPos == egg::string::npos) {
+    if (dotPos == Egg::string::npos) {
         return new DynamicBinding(name);
     }
     
-    egg::string first = name.substr(0, dotPos);
-    egg::string second = name.substr(dotPos + 1);
-    std::vector<egg::string> names = {first, second};
+    Egg::string first = name.substr(0, dotPos);
+    Egg::string second = name.substr(dotPos + 1);
+    std::vector<Egg::string> names = {first, second};
     return new NestedDynamicBinding(names);
 }
 

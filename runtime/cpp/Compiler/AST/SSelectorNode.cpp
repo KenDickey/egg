@@ -1,11 +1,11 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
  */
 
 #include "SSelectorNode.h"
 #include "SParseNodeVisitor.h"
-#include "../egg_string.h"
+#include "Utils/egg_string.h"
 
 namespace Egg {
 
@@ -17,7 +17,7 @@ bool SSelectorNode::isBinary() const {
     if (_symbol.empty()) return false;
     
     char32_t first = _symbol[0];
-    return !egg::isLetter(first) && !egg::isDigit(first) && first != '_' && first != ':';
+    return !Egg::isLetter(first) && !Egg::isDigit(first) && first != '_' && first != ':';
 }
 
 } // namespace Egg

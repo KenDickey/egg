@@ -1,11 +1,11 @@
 /*
-    Copyright (c) 2025, Javier Pimás.
+    Copyright (c) 2025-2026, Javier Pimás.
     See (MIT) license in root directory.
 */
 #ifndef _SSMALLTALKCOMPILER_H_
 #define _SSMALLTALKCOMPILER_H_
 #include "SCompiler.h"
-#include "egg_string.h"
+#include "Utils/egg_string.h"
 #include <functional>
 #include <memory>
 
@@ -47,7 +47,7 @@ private:
     SCompiler* _frontend;
     std::unique_ptr<SSmalltalkScanner> _scanner;
     std::unique_ptr<SSmalltalkParser> _parser;
-    egg::string _source;
+    Egg::string _source;
     SMethodNode* _ast;
     CompilationResult* _result;
     bool _headless;
@@ -73,12 +73,12 @@ public:
     SCascadeMessageNode* cascadeSMessageNode();
     SCascadeNode* cascadeNode();
     SCommentNode* commentNode();
-    CompilationError* compilationError_stretch_(const egg::string& aString, Stretch* aStretch);
-    CompilationResult* compileMethod_(const egg::string& aString);
+    CompilationError* compilationError_stretch_(const Egg::string& aString, Stretch* aStretch);
+    CompilationResult* compileMethod_(const Egg::string& aString);
     SToken* delimiterToken();
     SEndToken* endToken();
-    CompilationError* error_at_(const egg::string& aString, int anInteger);
-    CompilationError* error_stretch_(const egg::string& aString, Stretch* aStretch);
+    CompilationError* error_at_(const Egg::string& aString, int anInteger);
+    CompilationError* error_stretch_(const Egg::string& aString, Stretch* aStretch);
     SCompiler* frontend();
     void frontend_(SCompiler* aSCompiler);
     bool hasBlocks();
@@ -91,9 +91,9 @@ public:
     void noticeSend();
     SNumberNode* numericSLiteralNode();
     void parseFragment();
-    SMethodNode* parseFragment_(const egg::string& aString);
+    SMethodNode* parseFragment_(const Egg::string& aString);
     void parseMethod();
-    CompilationResult* parseMethod_(const egg::string& aString);
+    CompilationResult* parseMethod_(const Egg::string& aString);
     SSmalltalkParser* parser();
     SPragmaNode* pragmaNode();
     void reset();
@@ -103,11 +103,11 @@ public:
     SReturnNode* returnNode();
     SSmalltalkScanner* scanner();
     SSelectorNode* selectorNode();
-    egg::string sourceCode();
-    void sourceCode_(const egg::string& aString);
+    Egg::string sourceCode();
+    void sourceCode_(const Egg::string& aString);
     SStringToken* stringToken();
     bool supportsBraceNodes();
-    void warning_at_(const egg::string& aString, Stretch* aStretch);
+    void warning_at_(const Egg::string& aString, Stretch* aStretch);
 };
 
 } // namespace Egg
