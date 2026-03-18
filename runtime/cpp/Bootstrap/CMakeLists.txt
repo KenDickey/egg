@@ -18,14 +18,3 @@ target_include_directories(bootstrapper_lib PUBLIC
 # Link bootstrapper with runtime
 target_link_libraries(bootstrapper_lib PUBLIC egg_runtime)
 
-# Create bootstrap demonstration executable
-add_executable(bootstrap_demo
-    bootstrap_demo.cpp
-)
-
-# Link demo with bootstrapper library and compiler
-target_link_libraries(bootstrap_demo
-    bootstrapper_lib
-    egg_compiler
-)
-
