@@ -15,6 +15,8 @@
 #include "../Compiler/CompilationResult.h"
 #include "../KnownConstants.h"
 #include "../GCedRef.h"
+
+#include <algorithm>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
