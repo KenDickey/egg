@@ -192,7 +192,7 @@ void G1GC::followClosure()
 void G1GC::followGCedRefs()
 {
 	_runtime->gcedRefsDo_([this](GCedRef *ref) {
-			this->queue_from_to_((HeapObject*)ref->getRaw(), 1, 1);
+			this->scanRoot_(ref->getRaw());
 		});
 }
 
@@ -268,101 +268,93 @@ void G1GC::scan_from_to_(HeapObject *anObject, uintptr_t start, uintptr_t end)
 	_stack.push_back(end);
 }
 
+HeapObject* G1GC::resolveObject_(HeapObject *obj)
+{
+	auto evacuate = this->hasToEvacuate_(obj);
+	if (obj->hasBeenSeen())
+		return evacuate ? this->copyOf_(obj) : obj;
+
+	obj->beSeen();
+
+	if (evacuate)
+		obj = this->evacuate_(obj);
+	else
+		this->updateRegionOccupancy_(obj);
+
+	if (obj->isSpecial())
+		this->rememberSpecial_(obj);
+
+	return obj;
+}
+
 void G1GC::scanBehavior()
 {
-    auto slot = _scanned->behavior();
-//	printf("scanning behavior of %#" PRIxPTR " (%s)", (uintptr_t)_scanned, _scanned->printString().c_str());
-//	fflush(stdout);
-//	printf(", which is %#" PRIxPTR "( %s)\n", (uintptr_t)slot, slot->printString().c_str());
-	if (((Object*)slot)->isSmallInteger()) 
-    {
-        _index = _index + 1;
-        return;
-    }
-	auto evacuate = this->hasToEvacuate_(slot);
-	if (slot->hasBeenSeen())
-    {
-		if (evacuate)
-        {
-			slot = this->copyOf_(slot);
-			_scanned->behavior(slot);
-        }
-		_index = _index + 1;
-        return;
-    }
-	slot->beSeen();
-	if (evacuate)
+	auto slot = _scanned->behavior();
+	if (((Object*)slot)->isSmallInteger())
 	{
-        slot = this->evacuate_(slot);
-		_scanned->behavior(slot);
-    }
-    else
-    {
-        this->updateRegionOccupancy_(slot);
-    }
+		_index = _index + 1;
+		return;
+	}
 
-	if (slot->isSpecial())
-        this->rememberSpecial_(slot);
-    
+	bool wasSeen = slot->hasBeenSeen();
+	slot = this->resolveObject_(slot);
+	_scanned->behavior(slot);
+
+	if (wasSeen)
+	{
+		_index = _index + 1;
+		return;
+	}
+
 	if (_index < _limit)
-        this->queueCurrent();
+		this->queueCurrent();
 
 	_index = 0;
 	_limit = slot->strongPointersSize();
 	_scanned = slot;
 }
 
-void G1GC::scanSlot()
+void G1GC::scanRoot_(Object** root)
 {
-	// scanned can be a heap object or a chunk of stack frame, we cannot use slotAt_
-	auto slot = ((Object**)_scanned)[_index-1];
-	auto stack = debugRuntime->_evaluator->context()->stack();
-//	if ((uintptr_t)_scanned < (uintptr_t)&stack[0] || (uintptr_t)_scanned > (uintptr_t)&stack[0xFFFF])
-//		printf("scanning slot %d of %#" PRIxPTR " (%s)", _index, (uintptr_t)_scanned, _scanned->printString().c_str());
-//	else
-//		printf("scanning stack slot of frame %#" PRIxPTR " at %d" , (uintptr_t)_scanned, _index);
-
-//	fflush(stdout);
-//	printf(" which is %#" PRIxPTR " (%s)\n", (uintptr_t)slot, slot->printString().c_str());
+	auto slot = *root;
 
 	if (slot->isSmallInteger())
-    {
-        _index = _index + 1;
-        return;
-    }
+		return;
 
-    auto hslot = slot->asHeapObject();
+	auto hslot = slot->asHeapObject();
+	bool wasSeen = hslot->hasBeenSeen();
+	hslot = this->resolveObject_(hslot);
+	*root = (Object*)hslot;
 
-	auto evacuate = this->hasToEvacuate_(hslot);
-	if (hslot->hasBeenSeen())
+	if (!wasSeen)
+		this->scan_from_to_(hslot, 0, hslot->strongPointersSize());
+}
+
+void G1GC::scanSlot()
+{
+	auto &slotRef = _scanned->slotAt_(_index);
+	auto slot = slotRef;
+
+	if (slot == nullptr || slot->isSmallInteger())
 	{
-        if (evacuate)
-        {
-			hslot = this->copyOf_(hslot);
-			((Object**)_scanned)[_index-1] = (Object*)hslot;
-        }
 		_index = _index + 1;
-        return;
-    }
+		return;
+	}
 
-	hslot->beSeen();
+	auto hslot = slot->asHeapObject();
+	bool wasSeen = hslot->hasBeenSeen();
+	hslot = this->resolveObject_(hslot);
+	slotRef = (Object*)hslot;
 
-	if (evacuate)
+	if (wasSeen)
 	{
-        hslot = this->evacuate_(hslot);
-		((Object**)_scanned)[_index-1] = (Object*)hslot;
-    }
-    else
-    {
-        this->updateRegionOccupancy_(hslot);
-    }
+		_index = _index + 1;
+		return;
+	}
 
-    if (hslot->isSpecial())
-        this->rememberSpecial_(hslot);
-    
 	if (_index < _limit)
-        this->queueCurrent();
-    
+		this->queueCurrent();
+
 	_index = 0;
 	_limit = hslot->strongPointersSize();
 	_scanned = hslot;

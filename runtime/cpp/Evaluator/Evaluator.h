@@ -192,6 +192,7 @@ private:
 	Object* primitiveBootstrapDictKeys();
 	Object* primitiveBootstrapDictNew();
 	Object* primitiveClass();
+	Object* primitiveDictionaryNew();
 	Object* primitiveClosureArgumentCount();
 	Object* primitiveClosureAsCallback();
 	Object* primitiveClosureValue();
@@ -270,6 +271,7 @@ private:
 	Object* underprimitiveByteAt(Object *receiver, std::vector<Object*> &args);
 	Object* underprimitiveByteAtPut(Object *receiver, std::vector<Object*> &args);
 	Object* underprimitiveHalt(Object *receiver, std::vector<Object*> &args);
+	Object* underprimitiveError(Object *receiver, std::vector<Object*> &args);
 	Object* underprimitiveIdentityEquals(Object *receiver, std::vector<Object*> &args);
 	Object* underprimitiveIsLarge(Object *receiver, std::vector<Object*> &args);
 	Object* underprimitiveIsSmallInteger(Object *receiver, std::vector<Object*> &args);

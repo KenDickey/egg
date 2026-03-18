@@ -3,22 +3,17 @@
     See (MIT) license in root directory.
  */
 
-#include <iostream>
 #include <vector>
-#include <cstring>
-#include <algorithm>
+#include <filesystem>
 
 #include "Launcher.h"
-#include "ImageSegment.h"
 #include "Util.h"
-#include "Bootstrapper.h"
+#include "Loader.h"
+#include "GCedRef.h"
 
-#include "Evaluator/Evaluator.h"
 #include "Evaluator/Runtime.h"
 
 using namespace Egg;
-
-void start(Runtime *runtime, HeapObject *kernel, std::vector<Object*> &args);
 
 int
 Launcher::main(const int argc, const char** argv)
@@ -27,26 +22,38 @@ Launcher::main(const int argc, const char** argv)
         printf("Usage: %s <module name>\n", argv[0]);
         return 1;
     }
-    std::ifstream kernelFile("Kernel.ems", std::ifstream::binary);
-    if (!kernelFile) {
-        printf("No Kernel.ems file\n");
+
+    Egg::Initialize();
+
+    // Determine modules directory from the module path argument
+    std::filesystem::path modulePath(argv[1]);
+    std::string modulesDir;
+    if (modulePath.has_parent_path()) {
+        modulesDir = modulePath.parent_path().string();
+    } else {
+        modulesDir = "modules";
+    }
+
+    auto loader = new Loader(modulesDir);
+    Runtime* runtime = loader->loadKernel();
+    if (!runtime) {
         return 1;
     }
 
-    Egg::Initialize();
-    auto kernelSegment = new ImageSegment(&kernelFile);
-    kernelSegment->fixPointerSlots({});
+    // Extract module name from path
+    auto moduleName = modulePath.filename().string();
 
-    auto bootstrapper = new Bootstrapper(kernelSegment);
-    auto runtime = bootstrapper->_runtime;
-    HeapObject *kernel = bootstrapper->_kernel->_exports["Kernel"];
-
-
-    std::vector<Object*> args;
+    auto kernelModule = (Object*)runtime->_kernel->_exports["__module__"];
+    runtime->sendLocal_to_("useHostModuleLoader", kernelModule);
+    auto moduleNameSym = (Object*)runtime->addSymbol_(moduleName);
+    auto module = runtime->sendLocal_to_with_("load:", kernelModule, moduleNameSym);
+    GCedRef moduleRef(module);
+    auto args = std::vector<Object*>();
     for (int i = 0; i < argc; i++)
         args.push_back((Object*)runtime->newString_(argv[i]));
-    
-    start(runtime, kernel, args);
+    auto array = runtime->newArray_(args);
+    runtime->sendLocal_to_with_("main:", moduleRef.get(), (Object*)array);
+
     return 0;
 }
 

@@ -172,9 +172,8 @@ void GarbageCollector::scanNativeStackFrame_sized_(uintptr_t *framePointer, uint
 }
 
 void GarbageCollector::scanStackFrameObjects_sized_(uintptr_t *framePointer, uintptr_t size) {
-	//for (uintptr_t i = 0; i < size; i++)
-	//	printf("adding %s to queue\n", ((Object*)framePointer[i])->printString().c_str());
-	this->scan_from_to_((HeapObject*)framePointer, 1, size);
+	for (uintptr_t i = 0; i < size; i++)
+		this->scanRoot_((Object**)&framePointer[i]);
 }
 
 void GarbageCollector::scanSpecialSlots_(HeapObject *special)
@@ -219,7 +218,7 @@ void GarbageCollector::scanFirstStackChunk_(HeapObject *aProcessVMStack) {
 
 void GarbageCollector::scanPointer_(Object** pointer)
 {
-	this->scan_from_to_((HeapObject*)pointer, 1, 1);
+	this->scanRoot_(pointer);
 }
 
 /* only for use until we have context switches */

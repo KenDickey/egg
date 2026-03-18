@@ -51,6 +51,7 @@ public:
     void rescueEphemeron_(HeapObject *ephemeron);
     bool rescueUnreachableEphemerons();
     virtual void scan_from_to_(HeapObject *current, uintptr_t start, uintptr_t limit) = 0;
+    virtual void scanRoot_(Object** root) = 0;
     void scanNativeStackFrame_sized_(uintptr_t *framePointer, uintptr_t size);
     void scanStackFrameObjects_sized_(uintptr_t *framePointer, uintptr_t size);
     void scanSpecialSlots_(HeapObject *special);

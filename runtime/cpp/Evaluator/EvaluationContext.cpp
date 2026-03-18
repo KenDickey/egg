@@ -16,6 +16,16 @@
 
 using namespace Egg;
 
+EvaluationContext::EvaluationContext(Runtime *runtime) : _runtime(runtime)
+{
+    _regM = nullptr;
+    _regE = runtime->_nilObj;
+    _regSP = STACK_SIZE + 1;
+    _regBP = _regPC = 0;
+    _regS = nullptr;
+    _stack = new Object*[STACK_SIZE];
+}
+
 HeapObject* EvaluationContext::classBinding()
 {
     return _runtime->methodClassBinding_(this->method());
@@ -242,7 +252,8 @@ SBinding* EvaluationContext::staticBindingForCvar_in_(Object *aSymbol, HeapObjec
 }
 
 SBinding* EvaluationContext::staticBindingForCvar_(Object *aSymbol) {
-    auto species = this->_runtime->methodClassBinding_(this->method());
+    auto method = this->method();
+    auto species = this->_runtime->methodClassBinding_(method);
     return staticBindingForCvar_in_(aSymbol, species);
 }
 

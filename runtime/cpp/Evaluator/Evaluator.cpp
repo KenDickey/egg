@@ -106,6 +106,7 @@ void Evaluator::initializeUndermessages() {
     this->addUndermessage("_smiBitAnd:", &Evaluator::underprimitiveSMIBitAnd);
     this->addUndermessage("_smiBitOr:", &Evaluator::underprimitiveSMIBitOr);
     this->addUndermessage("_halt", &Evaluator::underprimitiveHalt);
+    this->addUndermessage("_error:", &Evaluator::underprimitiveError);
 }
 
 
@@ -172,6 +173,7 @@ void Evaluator::initializePrimitives()
     //this->addPrimitive("HostSuspendedBecause", &Evaluator::primitiveHostSuspendedBecause);
     this->addPrimitive("HostLoadModule", &Evaluator::primitiveHostLoadModule);
     //this->addPrimitive("HostFixOverrides", &Evaluator::primitiveHostFixOverrides);
+    this->addPrimitive("DictionaryNew", &Evaluator::primitiveDictionaryNew);
     this->addPrimitive("PrimeFor", &Evaluator::primitivePrimeFor);
     this->addPrimitive("FlushFromCaches", &Evaluator::primitiveFlushFromCaches);
     this->addPrimitive("FFICall", &Evaluator::primitiveFFICall);
@@ -456,7 +458,8 @@ void Evaluator::visitOpPushR(SOpPushR *anSOpPushR)
 void Evaluator::popFrameAndPrepare()
 {
 	_context->popFrame();
-	auto code = _runtime->methodExecutableCode_(_context->compiledCode());
+	auto method = _context->compiledCode();
+	auto code = _runtime->methodExecutableCode_(method);
 	_work = _runtime->executableCodeWork_(code);
 }
 
@@ -599,6 +602,23 @@ Object* Evaluator::primitiveBootstrapDictNew() {
 
 Object* Evaluator::primitiveClass() {
     return (Object*)this->_runtime->speciesOf_(this->_context->self());
+}
+
+Object* Evaluator::primitiveDictionaryNew() {
+    auto guard = this->_runtime->_heap->atGCSafepoint();
+    // self is Namespace class (or any HashedCollection subclass metaclass).
+    // Equivalent to: self basicNew initialize: (self sizeFor: 5)
+    // sizeFor: 5 => 7 max: (5*3//2) = 7. primeFor: 7 => 7.
+    auto species = this->_context->self()->asHeapObject();
+    auto table = this->_runtime->newSlots_size_(this->_runtime->_openHashTableClass, 7);
+    auto instance = this->_runtime->newSlotsOf_(species);
+    // tally := 0
+    instance->slot(0) = (Object*)this->_runtime->newInteger_(0);
+    // table := aHashTable
+    instance->slot(1) = (Object*)table;
+    // hashTable policy := instance (OpenHashTable named slot 0 = policy)
+    table->slot(0) = (Object*)instance;
+    return (Object*)instance;
 }
 
 Object* Evaluator::primitiveClosureArgumentCount() {
@@ -883,14 +903,20 @@ Object* Evaluator::primitiveNew() {
 }
 
 Object* Evaluator::primitiveNewBytes() {
+    auto arg = this->_context->firstArgument();
+    if (!arg->isSmallInteger())
+        return this->failPrimitive();
     auto guard = this->_runtime->_heap->atGCSafepoint();
-    auto size = this->_context->firstArgument()->asSmallInteger()->asNative();
+    auto size = arg->asSmallInteger()->asNative();
     return (Object*)this->_runtime->newBytes_size_(this->_context->self()->asHeapObject(), size);
 }
 
 Object* Evaluator::primitiveNewSized() {
+    auto arg = this->_context->firstArgument();
+    if (!arg->isSmallInteger())
+        return this->failPrimitive();
     auto guard = this->_runtime->_heap->atGCSafepoint();
-    auto size = this->_context->firstArgument()->asSmallInteger()->asNative();
+    auto size = arg->asSmallInteger()->asNative();
     return (Object*)this->_runtime->newOf_sized_(this->_context->self()->asHeapObject(), size);
 }
 
@@ -1022,7 +1048,9 @@ Object* Evaluator::primitiveSetBehavior() {
 }
 
 Object* Evaluator::primitiveSize() {
-    return newIntObject(this->_runtime->arrayedSizeOf_(this->_context->self()));
+    auto self = this->_context->self();
+    auto result = this->_runtime->arrayedSizeOf_(self);
+    return newIntObject(result);
 }
 
 Object* Evaluator::primitiveStringReplaceFromToWithStartingAt() {
@@ -1269,6 +1297,12 @@ Object* Evaluator::underprimitiveByteAtPut(Object *receiver, std::vector<Object*
 
 Object* Evaluator::underprimitiveHalt(Object *receiver, std::vector<Object*> &args) {
     this->_halt();
+    return receiver;
+}
+
+Object* Evaluator::underprimitiveError(Object *receiver, std::vector<Object*> &args) {
+    std::string msg = args[0]->asHeapObject()->printString();
+    error_(msg);
     return receiver;
 }
 
