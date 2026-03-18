@@ -106,6 +106,7 @@ void Evaluator::initializeUndermessages() {
     this->addUndermessage("_smiBitAnd:", &Evaluator::underprimitiveSMIBitAnd);
     this->addUndermessage("_smiBitOr:", &Evaluator::underprimitiveSMIBitOr);
     this->addUndermessage("_halt", &Evaluator::underprimitiveHalt);
+    this->addUndermessage("_error:", &Evaluator::underprimitiveError);
 }
 
 
@@ -172,6 +173,7 @@ void Evaluator::initializePrimitives()
     //this->addPrimitive("HostSuspendedBecause", &Evaluator::primitiveHostSuspendedBecause);
     this->addPrimitive("HostLoadModule", &Evaluator::primitiveHostLoadModule);
     //this->addPrimitive("HostFixOverrides", &Evaluator::primitiveHostFixOverrides);
+    this->addPrimitive("DictionaryNew", &Evaluator::primitiveDictionaryNew);
     this->addPrimitive("PrimeFor", &Evaluator::primitivePrimeFor);
     this->addPrimitive("FlushFromCaches", &Evaluator::primitiveFlushFromCaches);
     this->addPrimitive("FFICall", &Evaluator::primitiveFFICall);
@@ -304,7 +306,7 @@ void Egg::Evaluator::messageNotUnderstood_(SAbstractMessage *message)
 	auto array = _runtime->newArray_(args);
 	_context->push_(message->selector());
 	_context->push_((Object*)array);
-    auto symbol = _runtime->addSymbol_("doesNotUnderstand:");
+    auto symbol = _runtime->existingSymbolFrom_("doesNotUnderstand:");
     auto behavior = _runtime->behaviorOf_(_regR);
 	auto dnu = _runtime->lookup_startingAt_((Object*)symbol, behavior);
     if (!dnu)
@@ -324,6 +326,7 @@ void Evaluator::doesNotKnow(const Object *symbol) { ASSERT(false); }
 void Evaluator::visitIdentifier(SIdentifier *identifier)
 {
     SBinding* binding = identifier->binding();
+    
     auto value = binding->valueWithin_(_context);
     if (!value)
         return this->doesNotKnow(binding->name());
@@ -357,8 +360,6 @@ void Evaluator::visitOpDispatchMessage(SOpDispatchMessage *anSOpDispatchMessage)
 {
     SAbstractMessage *message = anSOpDispatchMessage->message();
 
-    //std::cout << "dispatching " << message->selector()->asLocalString() << std::endl;
-    
     UndermessagePointer undermessage = message->cachedUndermessage();
     if (undermessage != nullptr) {
         return this->evaluateUndermessage_with_(message, undermessage);
@@ -456,7 +457,8 @@ void Evaluator::visitOpPushR(SOpPushR *anSOpPushR)
 void Evaluator::popFrameAndPrepare()
 {
 	_context->popFrame();
-	auto code = _runtime->methodExecutableCode_(_context->compiledCode());
+	auto method = _context->compiledCode();
+	auto code = _runtime->methodExecutableCode_(method);
 	_work = _runtime->executableCodeWork_(code);
 }
 
@@ -513,15 +515,25 @@ Object* Evaluator::primitiveAt() {
     auto index = this->_context->firstArgument();
 
     if (receiver->isSmallInteger())
-        error("primitiveAt: receiver must not be an integer");
+        return this->failPrimitive();
 
     if (!index->isSmallInteger())
-        error("primitiveAt: index must be an integer");
+        return this->failPrimitive();
     
     auto index_int = index->asSmallInteger()->asNative();
 
     auto heapreceiver = receiver->asHeapObject();
-    return heapreceiver->isBytes() ? newIntObject(heapreceiver->byteAt_(index_int)) : _runtime->indexedSlotAt_(heapreceiver, index_int);
+    if (heapreceiver->isBytes()) {
+        if (index_int < 1 || (unsigned)(index_int - 1) >= heapreceiver->size())
+            return this->failPrimitive();
+        return newIntObject(heapreceiver->byteAt_(index_int));
+    } else {
+        auto instSize = heapreceiver->isNamed() ? (int)_runtime->speciesInstanceSize_(_runtime->speciesOf_((Object*)heapreceiver)) : 0;
+        auto rawSlot = heapreceiver->isNamed() ? index_int + instSize : index_int;
+        if (rawSlot < 1 || (unsigned)(rawSlot - 1) >= heapreceiver->size())
+            return this->failPrimitive();
+        return _runtime->indexedSlotAt_(heapreceiver, index_int);
+    }
 }
 
 Object* Evaluator::primitiveAtPut() {
@@ -599,6 +611,23 @@ Object* Evaluator::primitiveBootstrapDictNew() {
 
 Object* Evaluator::primitiveClass() {
     return (Object*)this->_runtime->speciesOf_(this->_context->self());
+}
+
+Object* Evaluator::primitiveDictionaryNew() {
+    auto guard = this->_runtime->_heap->atGCSafepoint();
+    // self is Namespace class (or any HashedCollection subclass metaclass).
+    // Equivalent to: self basicNew initialize: (self sizeFor: 5)
+    // sizeFor: 5 => 7 max: (5*3//2) = 7. primeFor: 7 => 7.
+    auto species = this->_context->self()->asHeapObject();
+    auto table = this->_runtime->newSlots_size_(this->_runtime->_openHashTableClass, 7);
+    auto instance = this->_runtime->newSlotsOf_(species);
+    // tally := 0
+    instance->slot(0) = (Object*)this->_runtime->newInteger_(0);
+    // table := aHashTable
+    instance->slot(1) = (Object*)table;
+    // hashTable policy := instance (OpenHashTable named slot 0 = policy)
+    table->slot(0) = (Object*)instance;
+    return (Object*)instance;
 }
 
 Object* Evaluator::primitiveClosureArgumentCount() {
@@ -883,14 +912,20 @@ Object* Evaluator::primitiveNew() {
 }
 
 Object* Evaluator::primitiveNewBytes() {
+    auto arg = this->_context->firstArgument();
+    if (!arg->isSmallInteger())
+        return this->failPrimitive();
     auto guard = this->_runtime->_heap->atGCSafepoint();
-    auto size = this->_context->firstArgument()->asSmallInteger()->asNative();
+    auto size = arg->asSmallInteger()->asNative();
     return (Object*)this->_runtime->newBytes_size_(this->_context->self()->asHeapObject(), size);
 }
 
 Object* Evaluator::primitiveNewSized() {
+    auto arg = this->_context->firstArgument();
+    if (!arg->isSmallInteger())
+        return this->failPrimitive();
     auto guard = this->_runtime->_heap->atGCSafepoint();
-    auto size = this->_context->firstArgument()->asSmallInteger()->asNative();
+    auto size = arg->asSmallInteger()->asNative();
     return (Object*)this->_runtime->newOf_sized_(this->_context->self()->asHeapObject(), size);
 }
 
@@ -938,8 +973,12 @@ Object* Evaluator::primitiveSMIBitOr() {
 Object* Evaluator::primitiveSMIBitShift() {
     auto self = this->_context->self()->asSmallInteger()->asNative();
     auto firstArg = this->_context->firstArgument()->asSmallInteger()->asNative();
-    auto shifted = firstArg > 0 ? self << firstArg : self >> -firstArg;
-    return newIntObject(shifted);
+    if (firstArg > 0) {
+        if (firstArg >= 63 || (self != 0 && (self > (SmallInteger::SMALLINT_MAX >> firstArg) || self < (SmallInteger::SMALLINT_MIN >> firstArg))))
+            return failPrimitive();
+        return newIntObject(self << firstArg);
+    }
+    return newIntObject(self >> -firstArg);
 }
 
 Object* Evaluator::primitiveSMIBitXor() {
@@ -975,11 +1014,25 @@ Object* Evaluator::primitiveSMIHighBit() {
 }
 
 Object* Evaluator::primitiveSMIIntDiv() {
-    return newIntObject(this->_context->self()->asSmallInteger()->asNative() / (this->_context->firstArgument()->asSmallInteger()->asNative()));
+    // Smalltalk // is floored division (toward negative infinity)
+    auto a = this->_context->self()->asSmallInteger()->asNative();
+    auto b = this->_context->firstArgument()->asSmallInteger()->asNative();
+    auto q = a / b;
+    // Adjust: if remainder is nonzero and signs differ, subtract 1
+    if ((a % b != 0) && ((a ^ b) < 0))
+        q -= 1;
+    return newIntObject(q);
 }
 
 Object* Evaluator::primitiveSMIIntQuot() {
-    return newIntObject(this->_context->self()->asSmallInteger()->asNative() % (this->_context->firstArgument()->asSmallInteger()->asNative()));
+    // Smalltalk \\ is floored remainder (modulo), same sign as divisor
+    auto a = this->_context->self()->asSmallInteger()->asNative();
+    auto b = this->_context->firstArgument()->asSmallInteger()->asNative();
+    auto r = a % b;
+    // Adjust: if remainder is nonzero and signs differ, add divisor
+    if (r != 0 && ((a ^ b) < 0))
+        r += b;
+    return newIntObject(r);
 }
 
 Object* Evaluator::primitiveSMIMinus() {
@@ -1022,7 +1075,9 @@ Object* Evaluator::primitiveSetBehavior() {
 }
 
 Object* Evaluator::primitiveSize() {
-    return newIntObject(this->_runtime->arrayedSizeOf_(this->_context->self()));
+    auto self = this->_context->self();
+    auto result = this->_runtime->arrayedSizeOf_(self);
+    return newIntObject(result);
 }
 
 Object* Evaluator::primitiveStringReplaceFromToWithStartingAt() {
@@ -1253,7 +1308,11 @@ Object* Evaluator::underprimitiveBasicHashPut(Object *receiver, std::vector<Obje
 }
 
 Object* Evaluator::underprimitiveBitShiftLeft(Object *receiver, std::vector<Object*> &args) {
-    auto result = receiver->asSmallInteger()->asNative() << args[0]->asSmallInteger()->asNative();
+    auto value = receiver->asSmallInteger()->asNative();
+    auto shift = args[0]->asSmallInteger()->asNative();
+    if (shift >= 63 || (value != 0 && shift > 0 && (value > (SmallInteger::SMALLINT_MAX >> shift) || value < (SmallInteger::SMALLINT_MIN >> shift))))
+        return (Object*)_nilObj;
+    auto result = value << shift;
     return newIntObject(result);
 }
 
@@ -1269,6 +1328,12 @@ Object* Evaluator::underprimitiveByteAtPut(Object *receiver, std::vector<Object*
 
 Object* Evaluator::underprimitiveHalt(Object *receiver, std::vector<Object*> &args) {
     this->_halt();
+    return receiver;
+}
+
+Object* Evaluator::underprimitiveError(Object *receiver, std::vector<Object*> &args) {
+    std::string msg = args[0]->asHeapObject()->printString();
+    error_(msg);
     return receiver;
 }
 
@@ -1320,7 +1385,11 @@ Object* Evaluator::underprimitiveSMIBitOr(Object *receiver, std::vector<Object*>
 }
 
 Object* Evaluator::underprimitiveSMIBitShiftLeft(Object *receiver, std::vector<Object*> &args) {
-    return newIntObject((receiver->asSmallInteger()->asNative() << args[0]->asSmallInteger()->asNative()));
+    auto value = receiver->asSmallInteger()->asNative();
+    auto shift = args[0]->asSmallInteger()->asNative();
+    if (shift >= 63 || (value != 0 && shift > 0 && (value > (SmallInteger::SMALLINT_MAX >> shift) || value < (SmallInteger::SMALLINT_MIN >> shift))))
+        return (Object*)_nilObj;
+    return newIntObject(value << shift);
 }
 
 Object* Evaluator::underprimitiveSMIBitShiftRight(Object *receiver, std::vector<Object*> &args) {

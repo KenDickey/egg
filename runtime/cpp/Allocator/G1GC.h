@@ -65,7 +65,9 @@ public:
     //void purgeRememberedSet(); // RE-ENABLE AFTER PLUGGING BACK GENGC
     void queue_from_to_(HeapObject *anObject, uintptr_t start, uintptr_t end);
     void queueCurrent();
+    HeapObject* resolveObject_(HeapObject *obj);
     void scan_from_to_(HeapObject *anObject, uintptr_t start, uintptr_t end);
+    void scanRoot_(Object** root);
     void scanBehavior();
     void scanSlot();
     void scanThreadLocalStorage_(HeapObject *thread);

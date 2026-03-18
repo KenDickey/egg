@@ -36,17 +36,7 @@ class EvaluationContext {
 
 public:
     const int STACK_SIZE = 64 * 1024;
-    EvaluationContext(Runtime *runtime) : 
-        _runtime(runtime)
-    {
-        _regM = _regE = nullptr;
-        _regSP = STACK_SIZE + 1;
-        _regBP = _regPC = 0;
-        _regS = 0;
-
-        _stack = new Object*[STACK_SIZE];
-    
-    }
+    EvaluationContext(Runtime *runtime);
 
     Object* receiver() { return _regS; }
     Object* self() { return _regS; }
