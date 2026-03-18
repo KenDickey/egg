@@ -1,0 +1,11 @@
+set(BINDING_SRC
+    Binding.h
+    VariableBinding.h
+    ArgumentBinding.h
+    TemporaryBinding.h
+    FieldBinding.h
+    MethodBinding.h
+    ClassBinding.h
+    GlobalBinding.h
+    ConstantBinding.h
+)

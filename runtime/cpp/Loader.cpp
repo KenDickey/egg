@@ -6,7 +6,7 @@
 #include "Loader.h"
 #include "Bootstrap/Bootstrapper.h"
 #include "Bootstrap/SourceModuleLoader.h"
-#include "ImageSegment.h"
+#include "FileImageSegment.h"
 #include <iostream>
 
 namespace Egg {
@@ -104,10 +104,10 @@ HeapObject* Loader::loadModule_(const std::string& name) {
 
 // .ems loading support methods
 
-ImageSegment* Loader::loadModuleFromFile(const std::string &filename) {
+FileImageSegment* Loader::loadModuleFromFile(const std::string &filename) {
     auto filepath = this->findInPath(filename);
     auto stream = std::ifstream(filepath, std::ios::binary);
-    auto imageSegment = new ImageSegment(&stream);
+    auto imageSegment = new FileImageSegment(&stream);
     std::vector<Object*> imports;
     this->bindModuleImports(imageSegment, imports);
     imageSegment->fixPointerSlots(imports);
@@ -115,13 +115,13 @@ ImageSegment* Loader::loadModuleFromFile(const std::string &filename) {
     return imageSegment;
 }
 
-void Loader::bindModuleImports(ImageSegment *imageSegment, std::vector<Object*> &imports) {
+void Loader::bindModuleImports(FileImageSegment *imageSegment, std::vector<Object*> &imports) {
     for (size_t i = 0; i < imageSegment->_importDescriptors.size(); i++) {
         imports.push_back(this->bindModuleImport(imageSegment, imageSegment->_importDescriptors[i]));
     }
 }
 
-Object* Loader::bindModuleImport(ImageSegment* imageSegment, std::vector<std::uint32_t> &descriptor) {
+Object* Loader::bindModuleImport(FileImageSegment* imageSegment, std::vector<std::uint32_t> &descriptor) {
     auto linker = this->importStringAt_(imageSegment, descriptor[0]);
     HeapObject *token;
     if (descriptor.size() == 1)
@@ -139,7 +139,7 @@ Object* Loader::bindModuleImport(ImageSegment* imageSegment, std::vector<std::ui
     return this->_runtime->sendLocal_to_("link", ref);
 }
 
-HeapObject* Loader::importStringAt_(ImageSegment* imageSegment, uint32_t index) {
+HeapObject* Loader::importStringAt_(FileImageSegment* imageSegment, uint32_t index) {
     return this->transferSymbol(imageSegment->importStringAt_(index));
 }
 
@@ -171,10 +171,10 @@ std::filesystem::path Loader::findInPath(const std::string &filename) {
 
 // Bare testing support
 
-ImageSegment* Loader::bareLoadModuleFromFile(const std::string &filename) {
+FileImageSegment* Loader::bareLoadModuleFromFile(const std::string &filename) {
     auto filepath = this->findInPath(filename);
     auto stream = std::ifstream(filepath);
-    auto imageSegment = new ImageSegment(&stream);
+    auto imageSegment = new FileImageSegment(&stream);
     std::vector<Object*> imports;
     for (size_t i = 0; i < imageSegment->_importDescriptors.size(); i++) {
         std::vector<uint32_t> &descriptor = imageSegment->_importDescriptors[i];
@@ -186,7 +186,7 @@ ImageSegment* Loader::bareLoadModuleFromFile(const std::string &filename) {
     return imageSegment;
 }
 
-Object* Loader::bareBindModuleImport(ImageSegment* imageSegment, std::vector<std::uint32_t> &descriptor) {
+Object* Loader::bareBindModuleImport(FileImageSegment* imageSegment, std::vector<std::uint32_t> &descriptor) {
     auto linker = imageSegment->importStringAt_(descriptor[0]);
     std::vector<std::string> tokens;
     for (size_t i = 1; i < descriptor.size(); i++)

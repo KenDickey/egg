@@ -20,6 +20,8 @@
 
 namespace Egg {
 
+class FileImageSegment;
+
 class Loader {
 public:
 	Runtime *_runtime;
@@ -32,25 +34,25 @@ public:
 	HeapObject* loadModule_(const std::string& name);
 
 	// .ems loading support
-	ImageSegment* loadModuleFromFile(const std::string &filename);
-	void bindModuleImports(ImageSegment *imageSegment, std::vector<Object*> &imports);
-	Object* bindModuleImport(ImageSegment* imageSegment, std::vector<std::uint32_t> &descriptor);
-	HeapObject* importStringAt_(ImageSegment* imageSegment, uint32_t index);
+	FileImageSegment* loadModuleFromFile(const std::string &filename);
+	void bindModuleImports(FileImageSegment *imageSegment, std::vector<Object*> &imports);
+	Object* bindModuleImport(FileImageSegment* imageSegment, std::vector<std::uint32_t> &descriptor);
+	HeapObject* importStringAt_(FileImageSegment* imageSegment, uint32_t index);
 	HeapObject* transferSymbol(std::string &str);
 	HeapObject* transferArray(std::vector<HeapObject*> &array);
 	HeapObject* transferArray(std::vector<Object*> &array);
 	std::filesystem::path findInPath(const std::string &filename);
 
 	// bare testing support
-	ImageSegment* bareLoadModuleFromFile(const std::string &filename);
-	Object* bareBindModuleImport(ImageSegment* imageSegment, std::vector<std::uint32_t> &descriptor);
+	FileImageSegment* bareLoadModuleFromFile(const std::string &filename);
+	Object* bareBindModuleImport(FileImageSegment* imageSegment, std::vector<std::uint32_t> &descriptor);
 
 	std::string findModulesDir_();
 
 private:
 	std::string _modulesDir;
 	std::map<std::string, HeapObject*> _loadedModules;
-	std::map<std::string, ImageSegment*> _segments;
+	std::map<std::string, FileImageSegment*> _segments;
 
 	bool hasEmsFile_(const std::string& name);
 	bool hasSourceDir_(const std::string& name);

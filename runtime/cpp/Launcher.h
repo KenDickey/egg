@@ -9,8 +9,6 @@
 
 #include <fstream>
 
-#include "ImageSegment.h"
-
 namespace Egg {
 
 class Launcher

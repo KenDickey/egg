@@ -7,7 +7,6 @@
 #define _BOOTSTRAPPED_KERNEL_H_
 
 #include "../ImageSegment.h"
-#include <map>
 #include <string>
 
 namespace Egg {
@@ -23,9 +22,6 @@ public:
     void addExport(const std::string& name, HeapObject* obj) {
         _exports[name] = obj;
     }
-
-private:
-    static std::istringstream createDummyStream();
 };
 
 } // namespace Egg
