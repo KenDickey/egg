@@ -196,6 +196,18 @@ TestSuite >> run [
 ]
 
 { #category : #running }
+TestSuite >> runDebug [
+	| res |
+	res := self resources.
+	res do: [:resource | resource beAvailableFor: self].
+	[
+		self allCases do: [:test |
+			Kernel log: 'running ', test printString; log: String cr.
+			test runCase]]
+		sunitEnsure: [res do: [:resource | resource reset]]
+]
+
+{ #category : #running }
 TestSuite >> run: aTestResult [
 	| res |
 	res := self setUpResources: aTestResult.
