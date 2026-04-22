@@ -113,6 +113,20 @@ TonelWriter >> methods: aCollection [
 				meta notNil and: [classes anySatisfy: [:cls | cls = meta instanceClass]]]]])
 ]
 
+{#category : #accessing}
+TonelWriter >> sortedMethods [
+	| classMethods instanceMethods |
+	classMethods := OrderedCollection new.
+	instanceMethods := OrderedCollection new.
+	self methods do: [:m |
+		m classBinding isMetaclass
+			ifTrue: [classMethods add: m]
+			ifFalse: [instanceMethods add: m]].
+	classMethods sortBy: [:a :b | a selector <= b selector].
+	instanceMethods sortBy: [:a :b | a selector <= b selector].
+	^classMethods asArray & instanceMethods asArray
+]
+
 {#category : #private}
 TonelWriter >> position: aStream afterSelector: aSymbol [
 	| c |
@@ -120,17 +134,20 @@ TonelWriter >> position: aStream afterSelector: aSymbol [
 		ifTrue: [aStream skipSeparators; skip: aSymbol size]
 		ifFalse: [
 			aSymbol keywords do: [:part | 
-				aStream
-					skipSeparators;
-					skip: part size;
-					skipSeparators;
-					nextKeyword]].
+				aStream skipSeparators; skip: part size; skipSeparators.
+				self skipIdentifierIn: aStream]].
 	[
 		aStream atEnd ifTrue: [^self].
 		c := aStream peek.
 		c isSeparator andNot: [c isEndOfLine]]
 		whileTrue: [aStream next].
 	c isEndOfLine ifTrue: [aStream next]
+]
+
+{#category : #private}
+TonelWriter >> skipIdentifierIn: aStream [
+	[aStream atEnd not and: [aStream peek isAlphaNumericOrUnderscore]]
+		whileTrue: [aStream next]
 ]
 
 {#category : #accessing}
@@ -168,7 +185,10 @@ TonelWriter >> writeClass: aClass category: aString [
 
 {#category : #writing}
 TonelWriter >> writeComments [
-	
+	| comment |
+	comment := class comment.
+	(comment isNil or: [comment isEmpty]) ifTrue: [^self].
+	stream nextPut: $"; nextPutAll: comment; nextPut: $"; cr; cr
 ]
 
 {#category : #writing}
@@ -180,7 +200,9 @@ TonelWriter >> writeDefinition [
 {#category : #writing}
 TonelWriter >> writeMethod: method [
 	| source head body metadata |
-	source := method sourceCode readStream.
+	source := method sourceObject.
+	source isNil ifTrue: [^self].
+	source := source readStream.
 	self position: source afterSelector: method selector.
 	head := source copyFrom: 1 to: source position.
 	body := source upToEnd.
@@ -205,7 +227,7 @@ TonelWriter >> writeMethod: method [
 
 {#category : #writing}
 TonelWriter >> writeMethods [
-	self methods do: [:m | self writeMethod: m]
+	self sortedMethods do: [:m | self writeMethod: m]
 ]
 
 {#category : #writing}

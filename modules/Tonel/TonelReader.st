@@ -37,19 +37,23 @@ TonelReader >> methods [
 
 {#category : #reading}
 TonelReader >> nextBlock [
-	| nested char start eol prev |
-	nested := 0.
-	prev := nil.
-	char := $[.
+	| nested char start eol skipNext |
+	nested := 1.
+	skipNext := false.
 	start := stream skipLine; position.
-	[
-		(char == $[ andNot: [prev == $$]) ifTrue: [nested := nested + 1].
-		(char = $] andNot: [prev == $$]) ifTrue: [nested := nested - 1].
-		(char = $' andNot: [prev == $$]) ifTrue: [self skipString].
-		(char = $" andNot: [prev == $$]) ifTrue: [self skipComment].
-		prev := char.
-		nested = 0]
-		whileFalse: [char := stream next].
+	[nested > 0] whileTrue: [
+		stream atEnd ifTrue: [^self error: 'unterminated method body'].
+		char := stream next.
+		skipNext
+			ifTrue: [skipNext := false]
+			ifFalse: [
+				char = $$ 
+					ifTrue: [skipNext := true]
+					ifFalse: [
+						char = $[ ifTrue: [nested := nested + 1].
+						char = $] ifTrue: [nested := nested - 1].
+						char = $' ifTrue: [self skipString].
+						char = $" ifTrue: [self skipComment]]]].
 	eol := stream eol size.
 	^stream copyFrom: start + eol - 1 to: stream position - 1
 ]
@@ -65,10 +69,13 @@ TonelReader >> read [
 
 {#category : #reading}
 TonelReader >> readComments [
+	| start |
 	stream skipSeparators.
 	stream peek = $" ifTrue: [
 		stream next.
-		self skipComment]
+		start := stream position.
+		self skipComment.
+		class at: #comment put: (stream contents copyFrom: start + 1 to: stream position - 1)]
 ]
 
 {#category : #reading}
