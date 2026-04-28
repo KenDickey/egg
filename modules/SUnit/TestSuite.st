@@ -23,6 +23,16 @@ TestSuite class >> availableEvents [
 ]
 
 { #category : #'instance creation' }
+TestSuite class >> forModule: aModule [
+	| suite |
+	suite := self named: aModule name.
+	aModule classes do: [:cls |
+		(cls inheritsFrom: TestCase) ifTrue: [
+			suite addTest: cls buildTestSuite]].
+	^suite
+]
+
+{ #category : #'instance creation' }
 TestSuite class >> fromString: aString [
 	| suite cm |
 	suite := self named: 'From strings'.
