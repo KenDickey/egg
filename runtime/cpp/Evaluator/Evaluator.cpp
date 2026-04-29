@@ -963,11 +963,15 @@ Object* Evaluator::primitivePrimeFor_(auto anInteger) {
 }
 
 Object* Evaluator::primitiveSMIBitAnd() {
-    return newIntObject((this->_context->self()->asSmallInteger()->asNative() & this->_context->firstArgument()->asSmallInteger()->asNative()));
+    auto arg = this->_context->firstArgument();
+    if (!arg->isSmallInteger()) return failPrimitive();
+    return newIntObject((this->_context->self()->asSmallInteger()->asNative() & arg->asSmallInteger()->asNative()));
 }
 
 Object* Evaluator::primitiveSMIBitOr() {
-    return newIntObject((this->_context->self()->asSmallInteger()->asNative() | this->_context->firstArgument()->asSmallInteger()->asNative()));
+    auto arg = this->_context->firstArgument();
+    if (!arg->isSmallInteger()) return failPrimitive();
+    return newIntObject((this->_context->self()->asSmallInteger()->asNative() | arg->asSmallInteger()->asNative()));
 }
 
 Object* Evaluator::primitiveSMIBitShift() {
@@ -978,11 +982,15 @@ Object* Evaluator::primitiveSMIBitShift() {
             return failPrimitive();
         return newIntObject(self << firstArg);
     }
-    return newIntObject(self >> -firstArg);
+    auto rshift = -firstArg;
+    if (rshift >= 63) return newIntObject(self < 0 ? -1 : 0);
+    return newIntObject(self >> rshift);
 }
 
 Object* Evaluator::primitiveSMIBitXor() {
-    return newIntObject(this->_context->self()->asSmallInteger()->asNative() ^ (this->_context->firstArgument()->asSmallInteger()->asNative()));
+    auto arg = this->_context->firstArgument();
+    if (!arg->isSmallInteger()) return failPrimitive();
+    return newIntObject(this->_context->self()->asSmallInteger()->asNative() ^ arg->asSmallInteger()->asNative());
 }
 
 Object* Evaluator::primitiveSMIEqual() {
@@ -1036,7 +1044,11 @@ Object* Evaluator::primitiveSMIIntQuot() {
 }
 
 Object* Evaluator::primitiveSMIMinus() {
-    return newIntObject((this->_context->self()->asSmallInteger()->asNative() - this->_context->firstArgument()->asSmallInteger()->asNative()));
+    auto arg = this->_context->firstArgument();
+    if (!arg->isSmallInteger()) return this->failPrimitive();
+    auto result = this->_context->self()->asSmallInteger()->asNative() - arg->asSmallInteger()->asNative();
+    if (result < SmallInteger::SMALLINT_MIN || result > SmallInteger::SMALLINT_MAX) return this->failPrimitive();
+    return newIntObject(result);
 }
 
 Object* Evaluator::primitiveSMINotEqual() {
@@ -1048,9 +1060,10 @@ Object* Evaluator::primitiveSMINotEqual() {
 
 Object* Evaluator::primitiveSMIPlus() {
     auto arg = this->_context->firstArgument();
-    return arg->isSmallInteger() ?
-        newIntObject((this->_context->self()->asSmallInteger()->asNative() + this->_context->firstArgument()->asSmallInteger()->asNative())) :
-        this->failPrimitive();
+    if (!arg->isSmallInteger()) return this->failPrimitive();
+    auto result = this->_context->self()->asSmallInteger()->asNative() + arg->asSmallInteger()->asNative();
+    if (result < SmallInteger::SMALLINT_MIN || result > SmallInteger::SMALLINT_MAX) return this->failPrimitive();
+    return newIntObject(result);
 }
 
 Object* Evaluator::primitiveSMISize() {
@@ -1063,9 +1076,13 @@ Object* Evaluator::primitiveSMISize() {
 
 Object* Evaluator::primitiveSMITimes() {
     auto arg = this->_context->firstArgument();
-    return arg->isSmallInteger() ?
-        newIntObject((this->_context->self()->asSmallInteger()->asNative() * arg->asSmallInteger()->asNative())) :
-        this->failPrimitive();
+    if (!arg->isSmallInteger()) return this->failPrimitive();
+    intptr_t a = this->_context->self()->asSmallInteger()->asNative();
+    intptr_t b = arg->asSmallInteger()->asNative();
+    intptr_t result;
+    if (__builtin_mul_overflow(a, b, &result) || result < SmallInteger::SMALLINT_MIN || result > SmallInteger::SMALLINT_MAX)
+        return this->failPrimitive();
+    return newIntObject(result);
 }
 
 Object* Evaluator::primitiveSetBehavior() {
@@ -1393,7 +1410,10 @@ Object* Evaluator::underprimitiveSMIBitShiftLeft(Object *receiver, std::vector<O
 }
 
 Object* Evaluator::underprimitiveSMIBitShiftRight(Object *receiver, std::vector<Object*> &args) {
-    return newIntObject((receiver->asSmallInteger()->asNative() >> args[0]->asSmallInteger()->asNative()));
+    auto value = receiver->asSmallInteger()->asNative();
+    auto shift = args[0]->asSmallInteger()->asNative();
+    if (shift >= 63) return newIntObject(value < 0 ? -1 : 0);
+    return newIntObject(value >> shift);
 }
 
 Object* Evaluator::underprimitiveSMIEquals(Object *receiver, std::vector<Object*> &args) {
@@ -1417,11 +1437,17 @@ Object* Evaluator::underprimitiveSMILowerThan(Object *receiver, std::vector<Obje
 }
 
 Object* Evaluator::underprimitiveSMIMinus(Object *receiver, std::vector<Object*> &args) {
-    return newIntObject((receiver->asSmallInteger()->asNative() - args[0]->asSmallInteger()->asNative()));
+    auto result = receiver->asSmallInteger()->asNative() - args[0]->asSmallInteger()->asNative();
+    if (result < SmallInteger::SMALLINT_MIN || result > SmallInteger::SMALLINT_MAX)
+        return (Object*)_nilObj;
+    return newIntObject(result);
 }
 
 Object* Evaluator::underprimitiveSMIPlus(Object *receiver, std::vector<Object*> &args) {
-    return newIntObject((receiver->asSmallInteger()->asNative() + args[0]->asSmallInteger()->asNative()));
+    auto result = receiver->asSmallInteger()->asNative() + args[0]->asSmallInteger()->asNative();
+    if (result < SmallInteger::SMALLINT_MIN || result > SmallInteger::SMALLINT_MAX)
+        return (Object*)_nilObj;
+    return newIntObject(result);
 }
 
 Object* Evaluator::underprimitiveSMIQuotientTowardZero(Object *receiver, std::vector<Object*> &args) {
@@ -1433,7 +1459,12 @@ Object* Evaluator::underprimitiveSMIRemainderTowardZero(Object *receiver, std::v
 }
 
 Object* Evaluator::underprimitiveSMITimes(Object *receiver, std::vector<Object*> &args) {
-    return newIntObject((receiver->asSmallInteger()->asNative() * args[0]->asSmallInteger()->asNative()));
+    intptr_t a = receiver->asSmallInteger()->asNative();
+    intptr_t b = args[0]->asSmallInteger()->asNative();
+    intptr_t result;
+    if (__builtin_mul_overflow(a, b, &result) || result < SmallInteger::SMALLINT_MIN || result > SmallInteger::SMALLINT_MAX)
+        return (Object*)_nilObj;
+    return newIntObject(result);
 }
 
 Object* Evaluator::underprimitiveSmallIntegerByteAt(Object *receiver, std::vector<Object*> &args) {
