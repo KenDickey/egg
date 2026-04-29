@@ -299,6 +299,16 @@ BareTestsModule >> test180FallbackToLargeNegativeInteger [
 ]
 
 { #category : #tests }
+BareTestsModule >> test182BitShiftRightFullWidth [
+	"SmallInteger>>bitShift: with negative shift >= word width must yield 0
+	(or -1 for negative receivers), not undefined behaviour from C++."
+	^(1 bitShift: -64) == 0
+		and: [(1 bitShift: -100) == 0
+		and: [(-1 bitShift: -64) == -1
+		and: [(16rFFFFFFFFFFFFFFFF + 1) = 16r10000000000000000]]]
+]
+
+{ #category : #tests }
 BareTestsModule >> test181FallbackToLargePositiveInteger [
 	| result |
 	result := 1.
@@ -407,6 +417,7 @@ BareTestsModule >> main: anArray [
 		test170SmallIntegerPrintString test171LargeIntegerPrintString
 		test172NegativeIntegerPrintString
 		test180FallbackToLargeNegativeInteger test181FallbackToLargePositiveInteger
+		test182BitShiftRightFullWidth
 		test200BitAndSmallIntegers test201BitAndSmallIntWithLargeInt
 		test202BitAndLargeIntWithSmallInt
 		test210BitOrSmallIntegers test211BitOrSmallIntWithLargeInt
