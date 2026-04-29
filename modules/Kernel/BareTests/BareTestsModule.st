@@ -305,3 +305,120 @@ BareTestsModule >> test181FallbackToLargePositiveInteger [
 	18 timesRepeat: [result := result * 10].
 	^result printString = '1000000000000000000'
 ]
+
+{ #category : #tests }
+BareTestsModule >> test200BitAndSmallIntegers [
+	^(16rAAAA bitAnd: 16r00FF) == 16r00AA
+]
+
+{ #category : #tests }
+BareTestsModule >> test201BitAndSmallIntWithLargeInt [
+	^(16rAA bitAnd: 16rFFFFFFFFFFFFFFFF) == 16rAA
+]
+
+{ #category : #tests }
+BareTestsModule >> test202BitAndLargeIntWithSmallInt [
+	^(16rFFFFFFFFFFFFFFFF bitAnd: 16rAA) == 16rAA
+]
+
+{ #category : #tests }
+BareTestsModule >> test210BitOrSmallIntegers [
+	^(16rAA00 bitOr: 16r00AA) == 16rAAAA
+]
+
+{ #category : #tests }
+BareTestsModule >> test211BitOrSmallIntWithLargeInt [
+	^(16rAA bitOr: 16rAA00000000) = 16rAA000000AA
+]
+
+{ #category : #tests }
+BareTestsModule >> test212BitOrLargeIntWithSmallInt [
+	^(16rAA00000000 bitOr: 16rAA) = 16rAA000000AA
+]
+
+{ #category : #tests }
+BareTestsModule >> test220BitXorSmallIntegers [
+	^(16rAAAA bitXor: 16r00FF) == 16rAA55
+]
+
+{ #category : #tests }
+BareTestsModule >> test221BitXorSmallIntWithLargeInt [
+	^(16rAA bitXor: 16rAA000000AA) = 16rAA00000000
+]
+
+{ #category : #tests }
+BareTestsModule >> test222BitXorLargeIntWithSmallInt [
+	^(16rAA000000AA bitXor: 16rAA) = 16rAA00000000
+]
+
+{ #category : #tests }
+BareTestsModule >> test230BitShiftLeftOverflow [
+	^(1 bitShift: 64) = 16r10000000000000000
+]
+
+{ #category : #tests }
+BareTestsModule >> test231BitShiftRightNegativeArg [
+	^(16rAA00 bitShift: -8) == 16rAA
+]
+
+{ #category : #tests }
+BareTestsModule >> test232BitShiftRightSelector [
+	^(16rAA00 bitShiftRight: 8) == 16rAA
+]
+
+{ #category : #main }
+BareTestsModule >> runTest: selector [
+	| result |
+	result := self perform: selector.
+	result == true
+		ifTrue: [Kernel log: '  PASS: ', selector, '
+']
+		ifFalse: [Kernel log: '  FAIL: ', selector, ' returned: ', result printString, '
+'].
+	^result == true
+]
+
+{ #category : #main }
+BareTestsModule >> main: anArray [
+	| passed failed tests |
+	Kernel log: 'Running Kernel.BareTests...
+'.
+	passed := 0. failed := 0.
+	tests := #(
+		test001SendYourself test010SendEqualsEquals test020SendPlus
+		test025SendQuotient test0
+		test030UseTemporary test031SendIfFalseToTrue test031UseManyTemporaries
+		test032SendIfTrueToTrue
+		test040SendIfNotNil test040UseArg
+		test041SendIfNotNilWithArgs test041UseArgsInOrder
+		test042SendIfNotNilWithNonEvaluableArg test042IntegerOperations
+		test043HashMultiply test049HashSymbol
+		test100EvaluateClosure test100SendWhileTrue
+		test110SendToDo test120SendTimesRepeat test121SendTimesRepeatInsideBlock
+		test130EvaluateClosureWithArgs test131EvaluateClosureWithArgsAndTemps
+		test132EvaluateClosureWithArgsAndMethodTemps
+		test133EvaluateClosureWithArgsAndMultipleTemps
+		test140EvaluateClosureNonLocalReturn
+		test150EvaluateNestedClosure test151EvaluateNestedClosureWithArgs
+		test152EvaluateNestedClosureWithTemps
+		test153EvaluateInlinedClosureInClosureWithMethodTemps
+		test160ConcatenateStrings test161CreateDictionary
+		test162AddAssociationToDictionary
+		test170SmallIntegerPrintString test171LargeIntegerPrintString
+		test172NegativeIntegerPrintString
+		test180FallbackToLargeNegativeInteger test181FallbackToLargePositiveInteger
+		test200BitAndSmallIntegers test201BitAndSmallIntWithLargeInt
+		test202BitAndLargeIntWithSmallInt
+		test210BitOrSmallIntegers test211BitOrSmallIntWithLargeInt
+		test212BitOrLargeIntWithSmallInt
+		test220BitXorSmallIntegers test221BitXorSmallIntWithLargeInt
+		test222BitXorLargeIntWithSmallInt
+		test230BitShiftLeftOverflow test231BitShiftRightNegativeArg
+		test232BitShiftRightSelector).
+	tests do: [:sel |
+		(self runTest: sel)
+			ifTrue: [passed := passed + 1]
+			ifFalse: [failed := failed + 1]].
+	Kernel log: tests size printString, ' run, ', passed printString, ' passed, ', failed printString, ' failed
+'
+]
