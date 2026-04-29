@@ -309,6 +309,15 @@ BareTestsModule >> test182BitShiftRightFullWidth [
 ]
 
 { #category : #tests }
+BareTestsModule >> test183FloatTimesTwoPower [
+	^(1.0 timesTwoPower: 0) = 1.0
+		and: [(1.0 timesTwoPower: 10) = 1024.0
+		and: [(1.0 timesTwoPower: -10) = (1.0 / 1024.0)
+		and: [(1.0 timesTwoPower: -107) > 0.0
+		and: [(1 / 10000000000000000) asFloat > 0.0]]]]
+]
+
+{ #category : #tests }
 BareTestsModule >> test181FallbackToLargePositiveInteger [
 	| result |
 	result := 1.
@@ -417,7 +426,7 @@ BareTestsModule >> main: anArray [
 		test170SmallIntegerPrintString test171LargeIntegerPrintString
 		test172NegativeIntegerPrintString
 		test180FallbackToLargeNegativeInteger test181FallbackToLargePositiveInteger
-		test182BitShiftRightFullWidth
+		test182BitShiftRightFullWidth test183FloatTimesTwoPower
 		test200BitAndSmallIntegers test201BitAndSmallIntWithLargeInt
 		test202BitAndLargeIntWithSmallInt
 		test210BitOrSmallIntegers test211BitOrSmallIntWithLargeInt

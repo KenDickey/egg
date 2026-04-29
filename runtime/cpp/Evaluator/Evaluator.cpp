@@ -810,11 +810,12 @@ Object* Evaluator::primitiveFloatSqrt() {
 
 Object* Evaluator::primitiveFloatTimesTwoPower() {
     auto arg = this->_context->firstArgument();
-    if (_runtime->speciesOf_(arg) != _runtime->_floatClass)
+    if (!arg->isSmallInteger())
         return this->failPrimitive();
 
     auto self = this->_context->self();
-    return this->boolObject(*(double*)self == *(double*)arg);
+    int exp = (int)arg->asSmallInteger()->asNative();
+    return this->newDoubleObject(std::ldexp(*(double*)self, exp));
 }
 
 Object* Evaluator::primitiveFloatTruncated() {
