@@ -32,7 +32,7 @@ private:
     void  skipLine();
 
     // Tonel structure (mirrors TonelReader.st >> read)
-    void readComments();
+    Egg::string readComments();
     Egg::string readType();
     std::map<Egg::string, Egg::string> readDefinition();
     void readMethods(ClassSpec* spec, MetaclassSpec* meta);

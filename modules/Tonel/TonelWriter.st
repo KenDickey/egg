@@ -211,12 +211,12 @@ TonelWriter >> writeMethod: method [
 	(STONWriter on: stream) writeMap: metadata.
 	stream cr; print: method classBinding name; nextPutAll: ' >> '.
 	head lines
-		do: [:line | stream nextPutAll: line utf8]
+		do: [:line | stream nextPutAll: line]
 		separatedBy: [stream cr].
 	stream nextPutAll: ' ['.
 	body := body readStream.
 	[
-		stream cr; nextPutAll: body nextLine utf8.
+		stream cr; nextPutAll: body nextLine.
 		body atEnd] whileFalse.
 	stream
 		cr;
