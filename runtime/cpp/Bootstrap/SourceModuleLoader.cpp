@@ -12,6 +12,7 @@
 #include "../Evaluator/Runtime.h"
 #include "../KnownConstants.h"
 #include "../GCedRef.h"
+#include <algorithm>
 #include <cstring>
 #include <set>
 #include <filesystem>
@@ -46,6 +47,7 @@ HeapObject* SourceModuleLoader::loadModuleFromSource(const std::string& modulePa
 
     // Phase 1: Parse all .st files in the module directory
     std::vector<Egg::string> newClassNames;
+    std::vector<Egg::string> extensionNames;
     for (const auto& entry : fs::directory_iterator(modulePath)) {
         if (entry.path().extension() == ".st") {
             std::string filename = entry.path().filename().string();
@@ -59,7 +61,11 @@ HeapObject* SourceModuleLoader::loadModuleFromSource(const std::string& modulePa
 
             ClassSpec* spec = reader.parseFile(source);
             _moduleSpec.addClass(spec);
-            newClassNames.push_back(spec->name());
+            if (spec->isExtension()) {
+                extensionNames.push_back(spec->name());
+            } else {
+                newClassNames.push_back(spec->name());
+            }
         }
     }
 
@@ -91,6 +97,13 @@ HeapObject* SourceModuleLoader::loadModuleFromSource(const std::string& modulePa
 
     GCedRef moduleClassRef(moduleClass);
     createMethodsOf_(moduleClassRef.get(), moduleSpec);
+
+    // Set module class comment if the .st file had a header comment
+    if (!moduleSpec->comment().empty()) {
+        auto commentObj = (Object*)_runtime->newString_(moduleSpec->comment().toUtf8());
+        _runtime->sendLocal_to_with_("comment:", moduleClassRef.get(), commentObj);
+    }
+
     auto moduleInstance = _runtime->sendLocal_to_("new", moduleClassRef.get());
     GCedRef moduleRef(moduleInstance);
     std::string modName = fs::path(modulePath).filename().string();
@@ -101,7 +114,13 @@ HeapObject* SourceModuleLoader::loadModuleFromSource(const std::string& modulePa
     _runtime->sendLocal_to_with_("module:", moduleClassRef.get(), moduleRef.get());
     _runtime->sendLocal_to_with_("addClass:", moduleRef.get(), moduleClassRef.get());
 
-    // Phase 4: Create remaining classes (sorted so superclasses come first)
+    // Populate namespace with kernel classes so superclass lookups work in Phase 4
+    _runtime->sendLocal_to_("bindKernelExports", moduleRef.get());
+
+    // Phase 4: Import required modules so their classes are available as superclasses
+    _runtime->sendLocal_to_("importRequiredModules", moduleRef.get());
+
+    // Phase 5: Create remaining classes (sorted so superclasses come first)
     // Simple topological sort: process classes whose superclass is already available
     std::vector<Egg::string> remaining;
     // Collect module-defined class names for dependency checking
@@ -146,13 +165,68 @@ HeapObject* SourceModuleLoader::loadModuleFromSource(const std::string& modulePa
         auto cls = createNewClassFrom_(spec, moduleRef.get());
         GCedRef clsRef(cls);
         createMethodsOf_(clsRef.get(), spec);
+
+        // Set class comment if the .st file had a header comment
+        if (!spec->comment().empty()) {
+            auto commentObj = (Object*)_runtime->newString_(spec->comment().toUtf8());
+            _runtime->sendLocal_to_with_("comment:", clsRef.get(), commentObj);
+        }
     }
 
-    // Phase 5: Set up module namespace and finalize
-    _runtime->sendLocal_to_("bindKernelExports", moduleRef.get());
-    _runtime->sendLocal_to_("importRequiredModules", moduleRef.get());
-    _runtime->sendLocal_to_("justLoaded", moduleRef.get());
+    // Phase 6: Finalize module
+    // (importRequiredModules was already called in Phase 4)
 
+    // Phase 7: Compile extension methods and register them via addExtension:
+    // so that justLoaded -> bind properly creates extension method copies
+    // with the MethodIsExtension flag and module association literal.
+    for (const auto& extName : extensionNames) {
+        ClassSpec* spec = _moduleSpec.resolveClass(extName);
+        auto namespace_ = _runtime->sendLocal_to_("namespace", moduleRef.get());
+
+        // Strip " class" suffix from extension name to get base class name.
+        // The TonelReader already classifies methods as instance/class side
+        // based on the method header (ClassName class >> vs ClassName >>),
+        // so we only need the base name for namespace lookup.
+        bool hasClassSuffix = extName.length() > 6 &&
+            extName.substr(extName.length() - 6) == " class";
+        Egg::string baseName = hasClassSuffix
+            ? extName.substr(0, extName.length() - 6)
+            : extName;
+
+        auto symbol = (Object*)_runtime->addSymbol_(baseName.toUtf8());
+        auto hasKey = _runtime->sendLocal_to_with_("includesKey:", namespace_, symbol);
+        if (hasKey != (Object*)_runtime->_trueObj)
+            continue;
+
+        auto baseClass = _runtime->sendLocal_to_with_("at:", namespace_, symbol);
+        GCedRef baseRef(baseClass);
+
+        // Compile instance-side methods (spec->methods()) and register as extensions.
+        // These always target the base class itself.
+        for (const auto& method : spec->methods()) {
+            auto cm = createExtensionMethod_(method.source(), baseRef.get());
+            if (cm) {
+                GCedRef cmRef(cm);
+                _runtime->sendLocal_to_with_("addExtension:", moduleRef.get(), cmRef.get());
+            }
+        }
+
+        // Compile class-side methods (spec->metaclass()->methods()) and register.
+        // These always target the metaclass of the base class.
+        if (spec->metaclass()) {
+            auto metaclass = _runtime->sendLocal_to_("class", baseRef.get());
+            GCedRef metaRef(metaclass);
+            for (const auto& method : spec->metaclass()->methods()) {
+                auto cm = createExtensionMethod_(method.source(), metaRef.get());
+                if (cm) {
+                    GCedRef cmRef(cm);
+                    _runtime->sendLocal_to_with_("addExtension:", moduleRef.get(), cmRef.get());
+                }
+            }
+        }
+    }
+
+    // Don't call justLoaded here — HostSystem>>load: calls it after the primitive returns
     return moduleRef.get()->asHeapObject();
 }
 
@@ -177,15 +251,25 @@ Object* SourceModuleLoader::createNewClassFrom_(ClassSpec* spec, Object* module)
     auto nameStr = (Object*)_runtime->newString_(spec->name().toUtf8());
     _runtime->sendLocal_to_with_("name:", classRef.get(), nameStr);
 
-    // Set instance variables
+    // Set instance variables directly at the heap level (bypasses Smalltalk instVarNames:
+    // which causes stack overflow when called from within SourceModuleLoader)
     const auto& ivarNames = spec->instVarNames();
     if (!ivarNames.empty()) {
         std::vector<Object*> ivars;
         for (const auto& ivar : ivarNames) {
             ivars.push_back((Object*)_runtime->addSymbol_(ivar.toUtf8()));
         }
-        auto ivarArray = (Object*)_runtime->newArray_(ivars);
-        _runtime->sendLocal_to_with_("instVarNames:", classRef.get(), ivarArray);
+        auto ivarArray = _runtime->newArray_(ivars);
+        classRef.get()->asHeapObject()->slot(Offsets::SpeciesInstanceVariables) = (Object*)ivarArray;
+
+        // Update format to include inst var count (same as updateInstSize)
+        auto formatObj = classRef.get()->asHeapObject()->slot(Offsets::SpeciesFormat);
+        int32_t format = formatObj->asSmallInteger()->asNative();
+        int32_t oldInstSize = format & 0x7F;
+        auto superFormatObj = superclass->asHeapObject()->slot(Offsets::SpeciesFormat);
+        int32_t superInstSize = superFormatObj->asSmallInteger()->asNative() & 0x7F;
+        int32_t newFormat = format - oldInstSize + superInstSize + (int32_t)ivarNames.size();
+        classRef.get()->asHeapObject()->slot(Offsets::SpeciesFormat) = (Object*)SmallInteger::from(newFormat);
     }
 
     // Set bytes flag if needed
@@ -220,18 +304,18 @@ void SourceModuleLoader::createMethodsOf_(Object* cls, ClassSpec* spec) {
 
     // Instance methods
     for (const auto& method : spec->methods()) {
-        createNewMethod_(method.source(), clsRef.get());
+        createNewMethod_(method.source(), clsRef.get(), method.category());
     }
 
     // Class methods
     auto metaclass = _runtime->sendLocal_to_("class", clsRef.get());
     GCedRef metaRef(metaclass);
     for (const auto& method : spec->metaclass()->methods()) {
-        createNewMethod_(method.source(), metaRef.get());
+        createNewMethod_(method.source(), metaRef.get(), method.category());
     }
 }
 
-void SourceModuleLoader::createNewMethod_(const Egg::string& source, Object* species) {
+void SourceModuleLoader::createNewMethod_(const Egg::string& source, Object* species, const Egg::string& category) {
     CompilationResult* result = _compiler->compileMethod_(source);
     SCompiledMethod* smethod = static_cast<SCompiledMethod*>(result->method());
     if (!smethod) {
@@ -276,8 +360,59 @@ void SourceModuleLoader::createNewMethod_(const Egg::string& source, Object* spe
         methodRef.get()->asHeapObject()->slot(Offsets::MethodInstSize + i) = literal;
     }
 
-    // Install method: species addSelector: selector withMethod: method
+    // Install method via Smalltalk protocol (all method dicts are proper
+    // MethodDictionary objects after bootstrap conversion)
     _runtime->sendLocal_to_with_with_("addSelector:withMethod:", speciesRef.get(), selector, methodRef.get());
+
+    // Set method category if provided
+    if (!category.empty()) {
+        auto catObj = (Object*)_runtime->addSymbol_(category.toUtf8());
+        _runtime->sendLocal_to_with_("category:", methodRef.get(), catObj);
+    }
+}
+
+Object* SourceModuleLoader::createExtensionMethod_(const Egg::string& source, Object* species) {
+    CompilationResult* result = _compiler->compileMethod_(source);
+    SCompiledMethod* smethod = static_cast<SCompiledMethod*>(result->method());
+    if (!smethod) {
+        std::cerr << "ERROR: Failed to compile extension method from source: '"
+                  << source.substr(0, std::min(source.length(), size_t(60))) << "...'" << std::endl;
+        return nullptr;
+    }
+
+    GCedRef speciesRef(species);
+
+    const auto& treecodes = smethod->treecodes();
+    const auto& literals = smethod->literals();
+    uint32_t literalCount = literals.size();
+
+    auto cmClass = lookupClass_("CompiledMethod");
+    auto size = (Object*)_runtime->newInteger_(literalCount);
+    auto method = _runtime->sendLocal_to_with_("new:", cmClass, size);
+    GCedRef methodRef(method);
+
+    auto format = (Object*)_runtime->newInteger_(smethod->format());
+    _runtime->sendLocal_to_with_("format:", methodRef.get(), format);
+
+    auto selector = (Object*)_runtime->addSymbol_(smethod->selector().toUtf8());
+    _runtime->sendLocal_to_with_("selector:", methodRef.get(), selector);
+
+    auto baClass = _runtime->_kernel->_exports["ByteArray"];
+    auto ba = _runtime->newBytes_size_(baClass, treecodes.size());
+    std::memcpy((void*)ba, treecodes.data(), treecodes.size());
+    _runtime->sendLocal_to_with_("treecodes:", methodRef.get(), (Object*)ba);
+
+    _runtime->sendLocal_to_with_("classBinding:", methodRef.get(), speciesRef.get());
+
+    auto sourceObj = (Object*)_runtime->newString_(source.toUtf8());
+    _runtime->sendLocal_to_with_("sourceObject:", methodRef.get(), sourceObj);
+
+    for (uint32_t i = 0; i < literalCount; i++) {
+        auto literal = transferLiteral_(literals[i], methodRef.get());
+        methodRef.get()->asHeapObject()->slot(Offsets::MethodInstSize + i) = literal;
+    }
+
+    return methodRef.get();
 }
 
 Object* SourceModuleLoader::transferLiteral_(const LiteralValue& lit, Object* method) {
@@ -287,11 +422,13 @@ Object* SourceModuleLoader::transferLiteral_(const LiteralValue& lit, Object* me
         case LiteralValue::String:
             return (Object*)_runtime->newString_(lit.asString().toUtf8());
         case LiteralValue::Integer:
-            return (Object*)_runtime->newInteger_(lit.asInteger());
+            return (Object*)_runtime->newInteger_((intptr_t)lit.asInteger());
+        case LiteralValue::LargeInteger:
+            return newLargeInteger_(lit.asLargeIntegerBytes(), lit.isLargeIntegerNegative());
         case LiteralValue::Float:
             return (Object*)_runtime->newDouble_(lit.asFloat());
         case LiteralValue::Character:
-            return (Object*)_runtime->newInteger_((intptr_t)lit.asCharacter());
+            return transferCharacter_(lit.asCharacter());
         case LiteralValue::Boolean:
             return (Object*)(lit.asBoolean() ? _runtime->_trueObj : _runtime->_falseObj);
         case LiteralValue::Nil:
@@ -322,6 +459,24 @@ Object* SourceModuleLoader::transferArray_(const std::vector<LiteralValue>& elem
         arrRef.get()->asHeapObject()->slot(i) = transferLiteral_(elements[i], nullptr);
     }
     return arrRef.get();
+}
+
+// Canonicalize the Character via Character class>>value:, which consults
+// ByteCharacters for code points 0..255. The kernel is fully alive at
+// runtime when SourceModuleLoader is used, so this is always safe.
+Object* SourceModuleLoader::transferCharacter_(uint32_t codePoint) {
+    auto cp = (Object*)_runtime->newInteger_((intptr_t)codePoint);
+    return _runtime->sendLocal_to_with_("value:", (Object*)_runtime->_characterClass, cp);
+}
+
+Object* SourceModuleLoader::newLargeInteger_(const std::vector<uint8_t>& leBytes, bool negative) {
+    const char* className = negative ? "LargeNegativeInteger" : "LargePositiveInteger";
+    auto largeClass = _runtime->_kernel->_exports[className];
+    auto obj = _runtime->newBytes_size_(largeClass, (uint32_t)leBytes.size());
+    auto behavior = _runtime->speciesInstanceBehavior_(largeClass);
+    obj->behavior(behavior);
+    std::memcpy((void*)obj, leBytes.data(), leBytes.size());
+    return (Object*)obj;
 }
 
 Object* SourceModuleLoader::transferBlock_(const LiteralValue::BlockInfo& info, Object* method) {

@@ -190,7 +190,7 @@ void SSmalltalkCompiler::parseFragment() {
     reset();
     scanner()->on_(_source);
     try {
-        _ast = parser()->parseMethod_();
+        _ast = parser()->parseMethod();
     } catch (...) {
     }
     if (_result) {
@@ -211,7 +211,7 @@ void SSmalltalkCompiler::parseMethod() {
     _headless = false;
     reset();
     scanner()->on_(_source);
-    _ast = parser()->parseMethod_();
+    _ast = parser()->parseMethod();
     if (_result) _result->ast_(_ast);
 }
 

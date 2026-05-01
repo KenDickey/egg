@@ -11,6 +11,7 @@
 #include <vector>
 #include "SToken.h"
 #include "../SSmalltalkCompiler.h"
+#include "../LiteralValue.h"
 #include "../AST/SParseNode.h"
 #include "../AST/SIdentifierNode.h"
 #include "../AST/SLiteralNode.h"
@@ -47,20 +48,20 @@ public:
     SSmalltalkParser(SSmalltalkCompiler* compiler);
     ~SSmalltalkParser();
     
-    SMethodNode* parseMethod_();
-    SMethodNode* parseExpression_();
+    SMethodNode* parseMethod();
+    SMethodNode* parseExpression();
     
-    SMethodNode* method_();
-    SMethodNode* headlessMethod_();
-    SMethodNode* methodSignature_();
-    SMethodNode* unarySignature_();
-    SMethodNode* binarySignature_();
-    SMethodNode* keywordSignature_();
+    SMethodNode* method();
+    SMethodNode* headlessMethod();
+    SMethodNode* methodSignature();
+    SMethodNode* unarySignature();
+    SMethodNode* binarySignature();
+    SMethodNode* keywordSignature();
     
-    SParseNode* expression_();
-    SParseNode* primary_();
-    SParseNode* statement_();
-    std::vector<SParseNode*> statements_();
+    SParseNode* expression();
+    SParseNode* primary();
+    SParseNode* statement();
+    std::vector<SParseNode*> statements();
     
     SParseNode* unarySequence_(SParseNode* receiver);
     SParseNode* binarySequence_(SParseNode* receiver);
@@ -72,13 +73,13 @@ public:
     void keywordMessage_(SMessageNode* message);
     void cascadeMessage_(SMessageNode* message);
     
-    SBlockNode* block_();
-    std::vector<SIdentifierNode*> blockArguments_();
+    SBlockNode* block();
+    std::vector<SIdentifierNode*> blockArguments();
     
     SReturnNode* return_();
-    SAssignmentNode* assignment_();
+    SAssignmentNode* assignment();
     
-    std::vector<SIdentifierNode*> temporaries_();
+    std::vector<SIdentifierNode*> temporaries();
     
     void addBodyTo_(SMethodNode* method);
     void addTemporariesTo_(SMethodNode* method);
@@ -86,30 +87,37 @@ public:
     void addPragmaTo_(SMethodNode* method);
     bool attachPragmaTo_(SMethodNode* method);
     
-    SParseNode* literalArray_();
-    SParseNode* literalByteArray_();
-    SBraceNode* bracedArray_();
+    SParseNode* literalArray();
+    SParseNode* literalByteArray();
+    SBraceNode* bracedArray();
     
-    SPragmaNode* pragma_();
-    SPragmaNode* numberedPrimitive_();
-    SPragmaNode* namedPrimitive_();
-    SPragmaNode* symbolicPragma_();
+    LiteralValue parseLiteralValue();
+    LiteralValue parseNumberString(const std::string& v);
+    LiteralValue parseFloatString(const std::string& v);
+    LiteralValue parseIntegerString(const std::string& v);
+    LiteralValue pseudoLiteralValue();
+    LiteralValue negativeNumberOrBinary();
     
-    SParseNode* parenthesizedExpression_();
-    bool hasUnarySelector_() const;
-    bool hasBinarySelector_() const;
-    bool hasKeywordSelector_() const;
+    SPragmaNode* pragma();
+    SPragmaNode* numberedPrimitive();
+    SPragmaNode* namedPrimitive();
+    SPragmaNode* symbolicPragma();
     
-    SToken* step_();
-    SToken* peek_();
-    SToken* next_();
-    void skipDots_();
+    SParseNode* parenthesizedExpression();
+    bool hasUnarySelector() const;
+    bool hasBinarySelector() const;
+    bool hasKeywordSelector() const;
+    
+    SToken* step();
+    SToken* peek();
+    SToken* next();
+    void skipDots();
     
     void error_(const std::string& message);
     void error_(const std::string& message, uint32_t position);
     void missingToken_(const std::string& expected);
-    void missingExpression_();
-    void missingArgument_();
+    void missingExpression();
+    void missingArgument();
     
     template<typename T>
     T* buildNode_(uint32_t position) {

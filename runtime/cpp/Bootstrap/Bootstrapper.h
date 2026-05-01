@@ -17,6 +17,7 @@
 #include "../Allocator/GCSpace.h"
 #include "../SymbolProvider.h"
 #include "CodeSpecs.h"
+#include "MethodDictBuilder.h"
 
 namespace Egg
 {
@@ -47,6 +48,8 @@ namespace Egg
         std::map<Egg::string, HeapObject *> _metaclasses;
         std::map<Egg::string, HeapObject *> _behaviors;
         std::map<Egg::string, HeapObject *> _metaBehaviors;
+        // map to keep Character identity during bootstrap
+        std::map<uint32_t, HeapObject *> _characterMap;
 
         // Cached class pointers (kernel-specific)
         HeapObject *_undefinedObjectClass;
@@ -60,6 +63,7 @@ namespace Egg
         HeapObject *_wideStringClass;
         HeapObject *_arrayClass;
         HeapObject *_methodDictionaryClass;
+        std::unique_ptr<MethodDictBuilder> _methodDictBuilder;
 
     public:
         Bootstrapper(const std::string &kernelPath, Loader *loader);
@@ -93,6 +97,10 @@ namespace Egg
         // Phase 8: Fill Smalltalk symbol table with bootstrap symbols
         void fillSymbolTable();
 
+        // Phase 9: Convert Array method dicts to proper MethodDictionary objects
+        void convertMethodDictionaries();
+        void convertBehaviorMethodDict_(HeapObject *species);
+
         // Kernel-specific hash table helpers
         HeapObject *newOpenHashTable_(uint32_t indexedSize, HeapObject *owner);
         void insertInOpenHashTable_(HeapObject *table, uint32_t indexedSize, Object *key, HeapObject *assoc);
@@ -108,6 +116,8 @@ namespace Egg
         Object *transferLiteral_(const LiteralValue &lit, HeapObject *method);
         HeapObject *transferBlock_(const LiteralValue::BlockInfo &blockInfo, HeapObject *method);
         HeapObject *transferArray_(const std::vector<LiteralValue> &elements);
+        Object *transferCharacter_(uint32_t codePoint);
+        HeapObject *newLargeInteger_(const std::vector<uint8_t> &leBytes, bool negative);
 
         // Object creation helpers
         HeapObject *newBytes_(const Egg::string &className, const void *data, uint32_t byteCount);

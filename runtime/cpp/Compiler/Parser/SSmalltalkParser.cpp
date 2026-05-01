@@ -7,6 +7,7 @@
 #include "../SSmalltalkCompiler.h"
 #include "../LiteralValue.h"
 #include "SSmalltalkScanner.h"
+#include "../../Egg.h"
 #include <stdexcept>
 #include <sstream>
 #include <iostream>
@@ -21,15 +22,15 @@ SSmalltalkParser::SSmalltalkParser(SSmalltalkCompiler* compiler)
 SSmalltalkParser::~SSmalltalkParser() {
 }
 
-SMethodNode* SSmalltalkParser::parseMethod_() {
-    return method_();
+SMethodNode* SSmalltalkParser::parseMethod() {
+    return method();
 }
 
-SMethodNode* SSmalltalkParser::parseExpression_() {
-    return headlessMethod_();
+SMethodNode* SSmalltalkParser::parseExpression() {
+    return headlessMethod();
 }
 
-SToken* SSmalltalkParser::next_() {
+SToken* SSmalltalkParser::next() {
     if (_next) {
         _token = std::move(_next);
         _next.reset();
@@ -39,7 +40,7 @@ SToken* SSmalltalkParser::next_() {
     return _token.get();
 }
 
-SToken* SSmalltalkParser::peek_() {
+SToken* SSmalltalkParser::peek() {
     if (_next) {
         return _next.get();
     }
@@ -60,13 +61,13 @@ SToken* SSmalltalkParser::peek_() {
     return _next.get();
 }
 
-SToken* SSmalltalkParser::step_() {
+SToken* SSmalltalkParser::step() {
     SToken* save = _token.get();
-    next_();
+    next();
     std::vector<Egg::string> comments;
     while (_token && _token->isComment()) {
         comments.push_back(_token->value());
-        next_();
+        next();
     }
     
     if (_token && !comments.empty()) {
@@ -78,8 +79,8 @@ SToken* SSmalltalkParser::step_() {
     return save;
 }
 
-void SSmalltalkParser::skipDots_() {
-    while (_token && _token->is('.')) step_();
+void SSmalltalkParser::skipDots() {
+    while (_token && _token->is('.')) step();
 }
 
 void SSmalltalkParser::error_(const std::string& message) {
@@ -96,17 +97,17 @@ void SSmalltalkParser::missingToken_(const std::string& expected) {
     error_("missing " + expected);
 }
 
-void SSmalltalkParser::missingExpression_() {
+void SSmalltalkParser::missingExpression() {
     error_("missing expression");
 }
 
-void SSmalltalkParser::missingArgument_() {
+void SSmalltalkParser::missingArgument() {
     error_("argument missing");
 }
 
-SMethodNode* SSmalltalkParser::method_() {
-    step_();
-    SMethodNode* method = methodSignature_();
+SMethodNode* SSmalltalkParser::method() {
+    step();
+    SMethodNode* method = methodSignature();
     if (!method) {
         return nullptr;
     }
@@ -114,30 +115,30 @@ SMethodNode* SSmalltalkParser::method_() {
     return method;
 }
 
-SMethodNode* SSmalltalkParser::headlessMethod_() {
-    step_();
+SMethodNode* SSmalltalkParser::headlessMethod() {
+    step();
     SMethodNode* method = new SMethodNode(_compiler);
     _compiler->activeScript_(method);
     addBodyTo_(method);
     return method;
 }
 
-SMethodNode* SSmalltalkParser::methodSignature_() {
-    SMethodNode* method = keywordSignature_();
+SMethodNode* SSmalltalkParser::methodSignature() {
+    SMethodNode* method = keywordSignature();
     if (method) return method;
     
-    method = binarySignature_();
+    method = binarySignature();
     if (method) return method;
     
-    method = unarySignature_();
+    method = unarySignature();
     if (method) return method;
     
     error_("method signature expected");
     return nullptr;
 }
 
-SMethodNode* SSmalltalkParser::unarySignature_() {
-    if (!hasUnarySelector_()) {
+SMethodNode* SSmalltalkParser::unarySignature() {
+    if (!hasUnarySelector()) {
         return nullptr;
     }
     
@@ -145,31 +146,31 @@ SMethodNode* SSmalltalkParser::unarySignature_() {
     selectorNode->symbol_(_token->value());
     selectorNode->position_(_token->position());
     
-    step_();
+    step();
     
     std::vector<SIdentifierNode*> emptyArgs;
     return buildMethodNode_(selectorNode, emptyArgs);
 }
 
-SMethodNode* SSmalltalkParser::binarySignature_() {
-    if (!hasBinarySelector_()) {
+SMethodNode* SSmalltalkParser::binarySignature() {
+    if (!hasBinarySelector()) {
         return nullptr;
     }
     SSelectorNode* selectorNode = new SSelectorNode(_compiler);
     selectorNode->symbol_(_token->value());
     selectorNode->position_(_token->position());
     
-    step_();
+    step();
     
     if (!_token || !_token->isName()) {
-        missingArgument_();
+        missingArgument();
     }
     
     SIdentifierNode* arg = new SIdentifierNode(_compiler);
     arg->name_(_token->value());
     arg->position_(_token->position());
     
-    step_();
+    step();
     
     std::vector<SIdentifierNode*> args;
     args.push_back(arg);
@@ -177,8 +178,8 @@ SMethodNode* SSmalltalkParser::binarySignature_() {
     return buildMethodNode_(selectorNode, args);
 }
 
-SMethodNode* SSmalltalkParser::keywordSignature_() {
-    if (!hasKeywordSelector_()) {
+SMethodNode* SSmalltalkParser::keywordSignature() {
+    if (!hasKeywordSelector()) {
         return nullptr;
     }
     
@@ -188,10 +189,10 @@ SMethodNode* SSmalltalkParser::keywordSignature_() {
     
     while (_token && _token->isKeyword()) {
         selector += _token->value();
-        step_();
+        step();
         
         if (!_token || !_token->isName()) {
-            missingArgument_();
+            missingArgument();
         }
         
         SIdentifierNode* arg = new SIdentifierNode(_compiler);
@@ -199,7 +200,7 @@ SMethodNode* SSmalltalkParser::keywordSignature_() {
         arg->position_(_token->position());
         arguments.push_back(arg);
         
-        step_();
+        step();
     }
     
     if (arguments.empty()) {
@@ -219,12 +220,12 @@ void SSmalltalkParser::addBodyTo_(SMethodNode* method) {
 }
 
 void SSmalltalkParser::addTemporariesTo_(SMethodNode* method) {
-    method->temporaries_(temporaries_());
+    method->temporaries_(temporaries());
 }
 
 void SSmalltalkParser::addStatementsTo_(SMethodNode* method) {
     method->position_(_token->position());
-    auto stmts = statements_();
+    auto stmts = statements();
     for (auto stmt : stmts) method->addStatement_(stmt);
     method->position_(Stretch(method->position().start(), _token->position().start()));
     if (_token && !_token->isEnd()) {
@@ -232,18 +233,18 @@ void SSmalltalkParser::addStatementsTo_(SMethodNode* method) {
     }
 }
 
-std::vector<SIdentifierNode*> SSmalltalkParser::temporaries_() {
+std::vector<SIdentifierNode*> SSmalltalkParser::temporaries() {
     std::vector<SIdentifierNode*> temps;
     if (!_token) return temps;
     if (_token->is("||")) {
-        step_();
+        step();
         return temps;
     }
     if (!_token->isBar()) {
         return temps;
     }
     while (true) {
-        step_();
+        step();
         if (!_token || !_token->isName()) break;
         SIdentifierNode* temp = new SIdentifierNode(_compiler);
         temp->name_(_token->value());
@@ -253,47 +254,47 @@ std::vector<SIdentifierNode*> SSmalltalkParser::temporaries_() {
     if (!_token || !_token->isBar()) {
         missingToken_("|");
     }
-    step_();
+    step();
     
     return temps;
 }
 
-std::vector<SParseNode*> SSmalltalkParser::statements_() {
+std::vector<SParseNode*> SSmalltalkParser::statements() {
     std::vector<SParseNode*> stmts;
     while (_token && !_token->endsExpression()) {
-        stmts.push_back(statement_());
-        if (_token && _token->is('.')) skipDots_(); else break;
+        stmts.push_back(statement());
+        if (_token && _token->is('.')) skipDots(); else break;
     }
     return stmts;
 }
 
-SParseNode* SSmalltalkParser::statement_() {
+SParseNode* SSmalltalkParser::statement() {
     if (_token && _token->is('^')) return return_();
-    SParseNode* expr = expression_();
+    SParseNode* expr = expression();
     return expr;
 }
 
 SReturnNode* SSmalltalkParser::return_() {
     uint32_t returnPos = _token->position().start();
-    step_();
-    auto expr = expression_();
-    if (!expr) missingExpression_();
+    step();
+    auto expr = expression();
+    if (!expr) missingExpression();
     uint32_t end = _token->position().start();
-    skipDots_();
+    skipDots();
     auto node = buildNode_<SReturnNode>(returnPos);
     node->expression_(expr);
     node->position_(Stretch(returnPos, end));
     return node;
 }
 
-SParseNode* SSmalltalkParser::expression_() {
-    if (_token && _token->isName() && peek_() && peek_()->isAssignment()) {
-        return assignment_();
+SParseNode* SSmalltalkParser::expression() {
+    if (_token && _token->isName() && peek() && peek()->isAssignment()) {
+        return assignment();
     }
     
-    SParseNode* prim = primary_();
+    SParseNode* prim = primary();
     if (!prim) {
-        missingExpression_();
+        missingExpression();
     }
     
     SParseNode* expr = unarySequence_(prim);
@@ -313,80 +314,144 @@ SParseNode* SSmalltalkParser::expression_() {
     return expr;
 }
 
-SAssignmentNode* SSmalltalkParser::assignment_() {
+SAssignmentNode* SSmalltalkParser::assignment() {
     uint32_t position = _token->position().start();
     auto variable = new SIdentifierNode(_compiler);
     variable->name_(_token->value());
     variable->position_(_token->position());
-    step_(); step_();
-    auto expr = expression_();
-    if (!expr) missingExpression_();
+    step(); step();
+    auto expr = expression();
+    if (!expr) missingExpression();
     auto assignment = buildNode_<SAssignmentNode>(position);
     assignment->assign_operator_(variable, nullptr);
     assignment->expression_(expr);
     return assignment;
 }
 
-SParseNode* SSmalltalkParser::primary_() {
+// =========================================================================
+// Number parsing helpers
+// =========================================================================
+
+// Parse a number literal lexeme. Detects integer vs float and dispatches.
+// Radix-prefixed numbers (0x.. or NrDDD) are always treated as integers;
+// '.' / 'e' / 'E' inside their digit body are hex/radix digits, not float
+// markers. Float radix notation is intentionally unsupported.
+LiteralValue SSmalltalkParser::parseNumberString(const std::string& v) {
+    bool isHexOrRadix = (v.size() > 2 && v[0] == '0' && (v[1] == 'x' || v[1] == 'X'))
+                     || v.find('r') != std::string::npos
+                     || v.find('R') != std::string::npos;
+    if (isHexOrRadix)
+        return parseIntegerString(v);
+    bool looksFloat = v.find('.') != std::string::npos
+                    || v.find('e') != std::string::npos
+                    || v.find('E') != std::string::npos;
+    if (looksFloat)
+        return parseFloatString(v);
+    return parseIntegerString(v);
+}
+
+// Parse a float literal lexeme (decimal only).
+LiteralValue SSmalltalkParser::parseFloatString(const std::string& v) {
+    return LiteralValue::fromFloat(std::stod(v));
+}
+
+// Parse an integer literal lexeme handling decimal, hex (0x), and radix
+// (NrDDD) notation. The factory in LiteralValue decides Integer vs LargeInteger.
+// Base is constrained to [2, 36] because we accept digits 0-9 and A-Z
+// (case-insensitive), giving 36 distinct symbols.
+LiteralValue SSmalltalkParser::parseIntegerString(const std::string& v) {
+    uint32_t base = 10;
+    std::string digits = v;
+    if (v.size() > 2 && v[0] == '0' && (v[1] == 'x' || v[1] == 'X')) {
+        base = 16;
+        digits = v.substr(2);
+    } else {
+        auto rpos = v.find('r');
+        if (rpos == std::string::npos) rpos = v.find('R');
+        if (rpos != std::string::npos) {
+            uint64_t parsed = std::stoull(v.substr(0, rpos));
+            if (!(parsed >= 2 && parsed <= 36))
+                Egg::error("integer literal radix out of range [2, 36]");
+            base = (uint32_t)parsed;
+            digits = v.substr(rpos + 1);
+        }
+    }
+    return LiteralValue::fromIntegerDigits(base, digits, /*negative*/ false);
+}
+
+// Convert current literal token to a LiteralValue
+LiteralValue SSmalltalkParser::parseLiteralValue() {
+    auto* strTok = static_cast<SStringToken*>(_token.get());
+    switch (strTok->literalKind()) {
+        case SStringToken::LitNumber:
+            return parseNumberString(_token->value().toUtf8());
+        case SStringToken::LitCharacter:
+            return LiteralValue::fromCharacter(_token->value()[0]);
+        case SStringToken::LitSymbol:
+            return LiteralValue::fromSymbol(_token->value());
+        case SStringToken::LitString:
+        default:
+            return LiteralValue::fromString(_token->value());
+    }
+}
+
+// Matches Smalltalk pseudoLiteralValue
+LiteralValue SSmalltalkParser::pseudoLiteralValue() {
+    Egg::string val = _token->value();
+    if (val == "nil")   return LiteralValue::nil();
+    if (val == "true")  return LiteralValue::fromBoolean(true);
+    if (val == "false") return LiteralValue::fromBoolean(false);
+    return LiteralValue::fromSymbol(val);
+}
+
+// Matches Smalltalk negativeNumberOrBinary
+LiteralValue SSmalltalkParser::negativeNumberOrBinary() {
+    auto peekToken = peek();
+    if (peekToken && peekToken->isLiteral()) {
+        auto* strTok = static_cast<SStringToken*>(peekToken);
+        if (strTok->literalKind() == SStringToken::LitNumber) {
+            step();
+            LiteralValue val = parseLiteralValue();
+            if (val.tag == LiteralValue::Integer)
+                return LiteralValue::fromInteger(-val.intVal);
+            if (val.tag == LiteralValue::LargeInteger)
+                return LiteralValue::fromLargeInteger(
+                    std::vector<uint8_t>(val.asLargeIntegerBytes()), true);
+            if (val.tag == LiteralValue::Float)
+                return LiteralValue::fromFloat(-val.floatVal);
+        }
+    }
+    return LiteralValue(); // None — signals no negative number found
+}
+
+SParseNode* SSmalltalkParser::primary() {
     if (!_token) return nullptr;
     if (_token->isName()) {
         SIdentifierNode* id = new SIdentifierNode(_compiler);
         id->name_(_token->value());
         id->position_(_token->position());
-        step_();
+        step();
         return id;
     }
     if (_token->isLiteral()) {
         SLiteralNode* lit = new SLiteralNode(_compiler);
-        auto* strTok = static_cast<SStringToken*>(_token.get());
-        switch (strTok->literalKind()) {
-            case SStringToken::LitNumber: {
-                std::string v = _token->value().toUtf8();
-                if (v.find('.') != std::string::npos || v.find('e') != std::string::npos || v.find('E') != std::string::npos) {
-                    lit->literalValue_(LiteralValue::fromFloat(std::stod(v)));
-                } else {
-                    lit->literalValue_(LiteralValue::fromInteger(std::stoll(v, nullptr, 0)));
-                }
-                break;
-            }
-            case SStringToken::LitCharacter:
-                lit->literalValue_(LiteralValue::fromCharacter(_token->value()[0]));
-                break;
-            case SStringToken::LitSymbol:
-                lit->literalValue_(LiteralValue::fromSymbol(_token->value()));
-                break;
-            case SStringToken::LitString:
-            default:
-                lit->literalValue_(LiteralValue::fromString(_token->value()));
-                break;
-        }
+        lit->literalValue_(parseLiteralValue());
         lit->position_(_token->position());
-        step_();
+        step();
         return lit;
     }
-    if (_token->is('[')) return block_();
-    if (_token->is('(')) return parenthesizedExpression_();
-    if (_token->is("#(")) return literalArray_();
-    if (_token->is("#[")) return literalByteArray_();
-    if (_token->is('{')) return bracedArray_();
+    if (_token->is('[')) return block();
+    if (_token->is('(')) return parenthesizedExpression();
+    if (_token->is("#(")) return literalArray();
+    if (_token->is("#[")) return literalByteArray();
+    if (_token->is('{')) return bracedArray();
     if (_token->is('-')) {
-        auto peekToken = peek_();
-        if (peekToken && peekToken->isLiteral()) {
-            step_();
+        LiteralValue negVal = negativeNumberOrBinary();
+        if (!negVal.isNone()) {
             SLiteralNode* lit = new SLiteralNode(_compiler);
-            auto* strTok = static_cast<SStringToken*>(_token.get());
-            std::string v = _token->value().toUtf8();
-            if (strTok->literalKind() == SStringToken::LitNumber) {
-                if (v.find('.') != std::string::npos || v.find('e') != std::string::npos || v.find('E') != std::string::npos) {
-                    lit->literalValue_(LiteralValue::fromFloat(-std::stod(v)));
-                } else {
-                    lit->literalValue_(LiteralValue::fromInteger(-std::stoll(v, nullptr, 0)));
-                }
-            } else {
-                lit->literalValue_(LiteralValue::fromString("-" + _token->value()));
-            }
+            lit->literalValue_(std::move(negVal));
             lit->position_(Stretch(_token->position().start() - 1, _token->position().end()));
-            step_();
+            step();
             return lit;
         }
         return nullptr;
@@ -394,27 +459,27 @@ SParseNode* SSmalltalkParser::primary_() {
     return nullptr;
 }
 
-SBlockNode* SSmalltalkParser::block_() {
+SBlockNode* SSmalltalkParser::block() {
     uint32_t position = _token->position().start();
     SBlockNode* block = new SBlockNode(_compiler);
     block->position_(Stretch(position, _token->position().start()));
     block->parent_(_compiler->activeScript());
     _compiler->activate_while_(block, [&]() {
-        step_();
-        block->arguments_(blockArguments_());
-        block->temporaries_(temporaries_());
-        auto stmts = statements_();
+        step();
+        block->arguments_(blockArguments());
+        block->temporaries_(temporaries());
+        auto stmts = statements();
         for (auto stmt : stmts) block->addStatement_(stmt);
         if (!_token || !_token->is(']')) {
             missingToken_("]");
         }
         block->position_(Stretch(position, _token->position().end()));
-        step_();
+        step();
     });
     return block;
 }
 
-std::vector<SIdentifierNode*> SSmalltalkParser::blockArguments_() {
+std::vector<SIdentifierNode*> SSmalltalkParser::blockArguments() {
     std::vector<SIdentifierNode*> args;
     
     if (!_token || !_token->is(':')) {
@@ -422,10 +487,10 @@ std::vector<SIdentifierNode*> SSmalltalkParser::blockArguments_() {
     }
     
     while (_token && _token->is(':')) {
-        step_();
+        step();
         
         if (!_token || !_token->isName()) {
-            missingArgument_();
+            missingArgument();
         }
         
         SIdentifierNode* arg = new SIdentifierNode(_compiler);
@@ -433,12 +498,12 @@ std::vector<SIdentifierNode*> SSmalltalkParser::blockArguments_() {
         arg->position_(_token->position());
         args.push_back(arg);
         
-        step_();
+        step();
     }
     if (_token && _token->isBar()) {
-        step_();
+        step();
     } else if (_token && _token->is("||")) {
-        step_(); // consume || as closing | for args + empty temps
+        step(); // consume || as closing | for args + empty temps
     } else {
         missingToken_("|");
     }
@@ -446,21 +511,21 @@ std::vector<SIdentifierNode*> SSmalltalkParser::blockArguments_() {
     return args;
 }
 
-SParseNode* SSmalltalkParser::parenthesizedExpression_() {
+SParseNode* SSmalltalkParser::parenthesizedExpression() {
     uint32_t start = _token->position().start();
-    step_();
-    auto expr = expression_();
-    if (!expr) missingExpression_();
+    step();
+    auto expr = expression();
+    if (!expr) missingExpression();
     if (!_token || !_token->is(')')) missingToken_(")");
     uint32_t end = _token->position().end();
-    step_();
+    step();
     if (!expr->isImmediate()) expr->position_(Stretch(start, end));
     return expr;
 }
 
 SParseNode* SSmalltalkParser::unarySequence_(SParseNode* receiver) {
     auto node = receiver;
-    while (hasUnarySelector_()) {
+    while (hasUnarySelector()) {
         auto msg = buildMessageNode_(node);
         unaryMessage_(msg);
         node = msg;
@@ -472,14 +537,14 @@ void SSmalltalkParser::unaryMessage_(SMessageNode* message) {
     auto selectorNode = new SSelectorNode(_compiler);
     selectorNode->symbol_(_token->value());
     selectorNode->position_(_token->position());
-    step_();
+    step();
     message->selector_(selectorNode);
     message->position_(Stretch(message->position().start(), selectorNode->position().end()));
 }
 
 SParseNode* SSmalltalkParser::binarySequence_(SParseNode* receiver) {
     auto node = receiver;
-    while (hasBinarySelector_()) {
+    while (hasBinarySelector()) {
         auto msg = buildMessageNode_(node);
         binaryMessage_(msg);
         node = msg;
@@ -491,8 +556,8 @@ void SSmalltalkParser::binaryMessage_(SMessageNode* message) {
     auto selectorNode = new SSelectorNode(_compiler);
     selectorNode->symbol_(_token->value());
     selectorNode->position_(_token->position());
-    step_();
-    auto prim = primary_();
+    step();
+    auto prim = primary();
     if (!prim) error_("primary missing");
     auto arg = unarySequence_(prim);
     message->selector_(selectorNode);
@@ -501,7 +566,7 @@ void SSmalltalkParser::binaryMessage_(SMessageNode* message) {
 }
 
 SParseNode* SSmalltalkParser::keywordSequence_(SParseNode* receiver) {
-    if (!hasKeywordSelector_()) return receiver;
+    if (!hasKeywordSelector()) return receiver;
     auto message = buildMessageNode_(receiver);
     keywordMessage_(message);
     return message;
@@ -513,9 +578,9 @@ void SSmalltalkParser::keywordMessage_(SMessageNode* message) {
     uint32_t start = _token->position().start();
     while (_token && _token->isKeyword()) {
         selector += _token->value();
-        step_();
-        auto prim = primary_();
-        if (!prim) missingArgument_();
+        step();
+        auto prim = primary();
+        if (!prim) missingArgument();
         auto arg = unarySequence_(prim);
         arg = binarySequence_(arg);
         arguments.push_back(arg);
@@ -542,7 +607,7 @@ SParseNode* SSmalltalkParser::cascadeSequence_(SMessageNode* messageNode) {
     firstMsg->cascade_(cascade);
     cascade->addMessage_(firstMsg);
     while (_token && _token->is(';')) {
-        step_();
+        step();
         auto msg = buildCascadeMessageNode_(receiver);
         msg->cascade_(cascade);
         msg->position_(_token->position());
@@ -555,17 +620,17 @@ SParseNode* SSmalltalkParser::cascadeSequence_(SMessageNode* messageNode) {
 }
 
 void SSmalltalkParser::cascadeMessage_(SMessageNode* message) {
-    if (hasUnarySelector_()) unaryMessage_(message);
-    else if (hasBinarySelector_()) binaryMessage_(message);
-    else if (hasKeywordSelector_()) keywordMessage_(message);
+    if (hasUnarySelector()) unaryMessage_(message);
+    else if (hasBinarySelector()) binaryMessage_(message);
+    else if (hasKeywordSelector()) keywordMessage_(message);
     else error_("invalid cascade message");
 }
 
-bool SSmalltalkParser::hasUnarySelector_() const {
+bool SSmalltalkParser::hasUnarySelector() const {
     return _token && _token->isName();
 }
 
-bool SSmalltalkParser::hasBinarySelector_() const {
+bool SSmalltalkParser::hasBinarySelector() const {
     if (!_token) return false;
     // ST: (token isStringToken and: [token hasSymbol]) or: [token is: $^] or: [token is: $:]
     if (_token->isSymbolic() && _token->hasSymbol()) return true;
@@ -574,113 +639,69 @@ bool SSmalltalkParser::hasBinarySelector_() const {
     return false;
 }
 
-bool SSmalltalkParser::hasKeywordSelector_() const {
+bool SSmalltalkParser::hasKeywordSelector() const {
     return _token && _token->isKeyword();
 }
 
-SParseNode* SSmalltalkParser::literalArray_() {
+SParseNode* SSmalltalkParser::literalArray() {
+    // Matches Smalltalk literalArray → arrayBody → arrayElement
     uint32_t position = _token->position().start();
-    step_();
     std::vector<LiteralValue> elements;
+    
+    // Step past #( (or ( for nested arrays)
+    step();
     while (_token && !_token->is(')') && !_token->isEnd()) {
+        // arrayElement
         if (_token->isLiteral()) {
-            auto* strTok = static_cast<SStringToken*>(_token.get());
-            switch (strTok->literalKind()) {
-                case SStringToken::LitNumber: {
-                    std::string v = _token->value().toUtf8();
-                    if (v.find('.') != std::string::npos) {
-                        elements.push_back(LiteralValue::fromFloat(std::stod(v)));
-                    } else {
-                        elements.push_back(LiteralValue::fromInteger(std::stoll(v, nullptr, 0)));
-                    }
-                    break;
-                }
-                case SStringToken::LitCharacter:
-                    elements.push_back(LiteralValue::fromCharacter(_token->value()[0]));
-                    break;
-                case SStringToken::LitSymbol:
-                    elements.push_back(LiteralValue::fromSymbol(_token->value()));
-                    break;
-                case SStringToken::LitString:
-                default:
-                    elements.push_back(LiteralValue::fromString(_token->value()));
-                    break;
-            }
+            elements.push_back(parseLiteralValue());
         } else if (_token->isName()) {
-            // pseudoLiteralValue: convert nil/true/false to actual values
-            Egg::string val = _token->value();
-            if (val == "nil") {
-                elements.push_back(LiteralValue::nil());
-            } else if (val == "true") {
-                elements.push_back(LiteralValue::fromBoolean(true));
-            } else if (val == "false") {
-                elements.push_back(LiteralValue::fromBoolean(false));
-            } else {
-                elements.push_back(LiteralValue::fromSymbol(val));
-            }
+            elements.push_back(pseudoLiteralValue());
         } else if (_token->isKeyword()) {
-            // literalKeyword: collect multi-part keyword symbol (e.g., at:put:)
+            // literalKeyword: collect multi-part keyword symbol
             Egg::string keyword = _token->value();
-            step_();
+            step();
             while (_token && _token->isKeyword()) {
                 keyword += _token->value();
-                step_();
+                step();
             }
             elements.push_back(LiteralValue::fromSymbol(keyword));
             continue; // already stepped past last keyword
-        } else if (_token->hasSymbol()) {
-            elements.push_back(LiteralValue::fromSymbol(_token->value()));
         } else if (_token->is('-')) {
-            // negative number in literal array
-            step_();
-            if (_token && _token->isLiteral()) {
-                auto* strTok = static_cast<SStringToken*>(_token.get());
-                if (strTok->literalKind() == SStringToken::LitNumber) {
-                    std::string v = _token->value().toUtf8();
-                    if (v.find('.') != std::string::npos) {
-                        elements.push_back(LiteralValue::fromFloat(-std::stod(v)));
-                    } else {
-                        elements.push_back(LiteralValue::fromInteger(-std::stoll(v, nullptr, 0)));
-                    }
-                } else {
-                    elements.push_back(LiteralValue::fromSymbol("-"));
-                    continue; // don't step, re-process current token
-                }
+            LiteralValue neg = negativeNumberOrBinary();
+            if (!neg.isNone()) {
+                elements.push_back(std::move(neg));
             } else {
                 elements.push_back(LiteralValue::fromSymbol("-"));
-                continue; // don't step, re-process current token
             }
-        } else if (_token->is('(')) {
-            // nested literal array (without #)
-            auto* nested = static_cast<SLiteralNode*>(literalArray_());
+        } else if (_token->hasSymbol()) {
+            elements.push_back(LiteralValue::fromSymbol(_token->value()));
+        } else if (_token->is('(') || _token->is("#(")) {
+            // nested literal array
+            auto* nested = static_cast<SLiteralNode*>(literalArray());
             elements.push_back(nested->literalValue());
-            continue;
-        } else if (_token->is("#(")) {
-            auto* nested = static_cast<SLiteralNode*>(literalArray_());
-            elements.push_back(nested->literalValue());
-            continue;
+            continue; // literalArray already stepped past )
         } else if (_token->is("#[")) {
-            auto* nested = static_cast<SLiteralNode*>(literalByteArray_());
+            auto* nested = static_cast<SLiteralNode*>(literalByteArray());
             elements.push_back(nested->literalValue());
-            continue;
+            continue; // literalByteArray already stepped past ]
         } else {
-            error_("invalid literal entry");
+            error_("invalid literal array element");
         }
-        step_();
+        step();
     }
-    if (!_token || !_token->is(')')) {
-        missingToken_(")");
-    }
+
+    if (_token && _token->isEnd()) missingToken_(")");
+
     auto lit = new SLiteralNode(_compiler);
     lit->literalValue_(LiteralValue::fromArray(std::move(elements)));
-    lit->position_(Stretch(position, _token->position().end()));
-    step_();
+    lit->position_(Stretch(position, _token ? _token->position().end() : position));
+    step(); // past )
     return lit;
 }
 
-SParseNode* SSmalltalkParser::literalByteArray_() {
+SParseNode* SSmalltalkParser::literalByteArray() {
     uint32_t position = _token->position().start();
-    step_();
+    step();
     std::vector<uint8_t> bytes;
     while (_token && !_token->is(']') && !_token->isEnd()) {
         if (_token->isLiteral()) {
@@ -689,7 +710,7 @@ SParseNode* SSmalltalkParser::literalByteArray_() {
             int val = static_cast<int>(std::stol(v, nullptr, 0));
             bytes.push_back(static_cast<uint8_t>(val));
         }
-        step_();
+        step();
     }
     if (!_token || !_token->is(']')) {
         missingToken_("]");
@@ -697,35 +718,35 @@ SParseNode* SSmalltalkParser::literalByteArray_() {
     auto lit = new SLiteralNode(_compiler);
     lit->literalValue_(LiteralValue::fromByteArray(std::move(bytes)));
     lit->position_(Stretch(position, _token->position().end()));
-    step_();
+    step();
     return lit;
 }
 
-SBraceNode* SSmalltalkParser::bracedArray_() {
+SBraceNode* SSmalltalkParser::bracedArray() {
     uint32_t position = _token->position().start();
-    step_();
+    step();
     SBraceNode* brace = new SBraceNode(_compiler);
     brace->position_(Stretch(position, _token->position().start()));
     while (_token && !_token->is('}') && !_token->isEnd()) {
-        SParseNode* expr = expression_();
+        SParseNode* expr = expression();
         if (expr) {
             brace->addElement_(expr);
         }
         if (_token && _token->is('.')) {
-            step_();
+            step();
         }
     }
     if (!_token || !_token->is('}')) {
         missingToken_("}");
     }
     brace->position_(Stretch(position, _token->position().end()));
-    step_();
+    step();
     return brace;
 }
 
 void SSmalltalkParser::addPragmaTo_(SMethodNode* method) {
     if (attachPragmaTo_(method)) {
-        step_();
+        step();
     }
 }
 
@@ -735,24 +756,24 @@ bool SSmalltalkParser::attachPragmaTo_(SMethodNode* method) {
     }
     
     uint32_t start = _token->position().start();
-    step_();
+    step();
     
-    SPragmaNode* pragma = nullptr;
+    SPragmaNode* node = nullptr;
     
     if (_token && _token->isKeyword()) {
         Egg::string keyword = _token->value();
         if (keyword == "primitive:") {
-            pragma = pragma_();
+            node = pragma();
         } else {
-            pragma = symbolicPragma_();
+            node = symbolicPragma();
         }
     } else {
-        pragma = symbolicPragma_();
+        node = symbolicPragma();
     }
     
-    if (pragma) {
-        pragma->position_(Stretch(start, _token->position().end()));
-        method->pragma_(pragma);
+    if (node) {
+        node->position_(Stretch(start, _token->position().end()));
+        method->pragma_(node);
     }
     
     if (!_token || !_token->is('>')) {
@@ -762,24 +783,24 @@ bool SSmalltalkParser::attachPragmaTo_(SMethodNode* method) {
     return true;
 }
 
-SPragmaNode* SSmalltalkParser::pragma_() {
-    step_();
+SPragmaNode* SSmalltalkParser::pragma() {
+    step();
     
     if (!_token) {
         error_("missing pragma value");
     }
     
     if (_token->isLiteral()) {
-        return numberedPrimitive_();
+        return numberedPrimitive();
     } else if (_token->isName()) {
-        return namedPrimitive_();
+        return namedPrimitive();
     }
     
     error_("invalid pragma format");
     return nullptr;
 }
 
-SPragmaNode* SSmalltalkParser::numberedPrimitive_() {
+SPragmaNode* SSmalltalkParser::numberedPrimitive() {
     int number = 0;
     try {
         number = std::stoi(_token->value().toUtf8());
@@ -792,11 +813,11 @@ SPragmaNode* SSmalltalkParser::numberedPrimitive_() {
     pragma->bePrimitive_(number, "");
     pragma->position_(Stretch(position, _token->position().end()));
     
-    step_();
+    step();
     return pragma;
 }
 
-SPragmaNode* SSmalltalkParser::namedPrimitive_() {
+SPragmaNode* SSmalltalkParser::namedPrimitive() {
     Egg::string name = _token->value();
     uint32_t position = _token->position().start();
     
@@ -804,11 +825,11 @@ SPragmaNode* SSmalltalkParser::namedPrimitive_() {
     pragma->bePrimitive_(0, name);
     pragma->position_(Stretch(position, _token->position().end()));
     
-    step_();
+    step();
     return pragma;
 }
 
-SPragmaNode* SSmalltalkParser::symbolicPragma_() {
+SPragmaNode* SSmalltalkParser::symbolicPragma() {
     Egg::string symbol = _token->value();
     uint32_t position = _token->position().start();
     
@@ -816,7 +837,7 @@ SPragmaNode* SSmalltalkParser::symbolicPragma_() {
     pragma->beSymbolic_(symbol);
     pragma->position_(Stretch(position, _token->position().end()));
     
-    step_();
+    step();
     return pragma;
 }
 
