@@ -5,6 +5,7 @@ project(KernelBootstrapper)
 add_library(bootstrapper_lib
     CodeSpecs.cpp
     Bootstrapper.cpp
+    MethodDictBuilder.cpp
     SourceModuleLoader.cpp
     BootstrappedKernel.cpp
     TonelReader.cpp
