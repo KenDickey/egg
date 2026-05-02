@@ -67,7 +67,7 @@ bool GCSpace::commitMemoryUpTo_(uintptr_t address)
     if (newLimit < address)
         return false;
 
-    CommitMemory(_committedLimit, newLimit - _base);
+    CommitMemory(_committedLimit, newLimit - _committedLimit);
     _committedLimit = newLimit;
     return true;
 }
