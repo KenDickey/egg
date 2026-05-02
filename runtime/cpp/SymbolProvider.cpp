@@ -19,7 +19,7 @@ Object* BootstrapSymbolProvider::existingSymbolFor_(const Egg::string& name) {
 }
 
 DynamicSymbolProvider::DynamicSymbolProvider(Runtime* runtime, HeapObject* symbolTable)
-    : _runtime(runtime), _symbolTable(symbolTable) {}
+    : _runtime(runtime), _symbolTable(new GCedRef((Object*)symbolTable)) {}
 
 Object* DynamicSymbolProvider::existingSymbolFor_(const Egg::string& name) {
     auto it = _cache.find(name);
@@ -37,7 +37,7 @@ Object* DynamicSymbolProvider::existingSymbolFor_(const Egg::string& name) {
     std::string bytesStr(bytes, isLatin1 ? name.size() : name.size() * 4);
 
     // Linear scan of symbol table (HashTable with 'policy' ivar at slot 1, elements from slot 2)
-    HeapObject* table = _symbolTable->slotAt_(2)->asHeapObject();
+    HeapObject* table = _symbolTable->get()->asHeapObject()->slotAt_(2)->asHeapObject();
     for (int i = 2; i <= table->size(); i++) {
         auto symbol = table->slotAt_(i);
         if (symbol != (Object*)_runtime->_nilObj) {
