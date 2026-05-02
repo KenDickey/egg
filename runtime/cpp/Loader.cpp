@@ -7,6 +7,7 @@
 #include "Bootstrap/Bootstrapper.h"
 #include "Bootstrap/SourceModuleLoader.h"
 #include "FileImageSegment.h"
+#include <algorithm>
 #include <iostream>
 
 namespace Egg {
@@ -47,7 +48,7 @@ bool Loader::hasSourceDir_(const std::string& name) {
     namespace fs = std::filesystem;
     auto modulesRoot = findModulesDir_();
     if (modulesRoot.empty()) return false;
-    auto moduleDir = fs::path(modulesRoot) / name;
+    auto moduleDir = fs::path(modulesRoot) / modulePath_(name);
     return fs::exists(moduleDir) && fs::is_directory(moduleDir);
 }
 
@@ -75,8 +76,9 @@ Runtime* Loader::loadKernel() {
 HeapObject* Loader::loadModule_(const std::string& name) {
     // 1. Already loaded?
     auto it = _loadedModules.find(name);
-    if (it != _loadedModules.end())
+    if (it != _loadedModules.end()) {
         return it->second;
+    }
 
     HeapObject* module = nullptr;
 
@@ -89,12 +91,59 @@ HeapObject* Loader::loadModule_(const std::string& name) {
     else if (hasSourceDir_(name)) {
         namespace fs = std::filesystem;
         auto modulesRoot = findModulesDir_();
-        auto modulePath = (fs::path(modulesRoot) / name).string();
+        auto modPath = (fs::path(modulesRoot) / modulePath_(name)).string();
         SourceModuleLoader sourceLoader(_runtime);
-        module = sourceLoader.loadModuleFromSource(modulePath);
+        module = sourceLoader.loadModuleFromSource(modPath);
     }
     else {
         error(("Module not found: " + name).c_str());
+        return nullptr;
+    }
+
+    _loadedModules[name] = module;
+    return module;
+}
+
+std::string Loader::modulePath_(const std::string& name) {
+    std::string path = name;
+    std::replace(path.begin(), path.end(), '.', '/');
+    return path;
+}
+
+HeapObject* Loader::loadModuleFromPath_(const std::string& path) {
+    namespace fs = std::filesystem;
+    fs::path fsPath(path);
+    HeapObject* module = nullptr;
+
+    // Determine the module name from the path
+    std::string name = fsPath.filename().string();
+    // Strip .ems extension if present
+    if (name.size() > 4 && name.substr(name.size() - 4) == ".ems")
+        name = name.substr(0, name.size() - 4);
+
+    // Already loaded?
+    auto it = _loadedModules.find(name);
+    if (it != _loadedModules.end())
+        return it->second;
+
+    // If path ends with .ems, load as image segment
+    if (fsPath.extension() == ".ems" && fs::exists(fsPath)) {
+        auto stream = std::ifstream(fsPath, std::ios::binary);
+        auto imageSegment = new FileImageSegment(&stream);
+        _segments[name] = imageSegment;
+        std::vector<Object*> imports;
+        this->bindModuleImports(imageSegment, imports);
+        imageSegment->fixPointerSlots(imports);
+        this->_runtime->addSegmentSpace_(imageSegment);
+        module = imageSegment->_exports["__module__"];
+    }
+    // If path is a directory, load from source
+    else if (fs::is_directory(fsPath)) {
+        SourceModuleLoader sourceLoader(_runtime);
+        module = sourceLoader.loadModuleFromSource(path);
+    }
+    else {
+        error(("Module not found at path: " + path).c_str());
         return nullptr;
     }
 
