@@ -22,6 +22,7 @@ Runtime::Runtime(Loader* loader, ImageSegment* kernel, SymbolProvider* symbolPro
     _symbolProvider(symbolProvider),
     _lastHash(0)
 {
+    debugRuntime = this;
     this->initializeKernelObjects();
     KnownObjects::initializeFrom(this);
     _heap = new GCHeap(this);
@@ -177,10 +178,19 @@ HeapObject *Runtime::loadModule_(HeapObject *name) {
     return _loader->loadModule_(name->asLocalString());
 }
 
+HeapObject *Runtime::loadModuleFromPath_(const std::string &path) {
+    return _loader->loadModuleFromPath_(path);
+}
+
 void Runtime::addSegmentSpace_(ImageSegment* segment)
 {
     GCSpace *space = GCSpace::allocatedAt_limit_(segment->spaceStart(), segment->spaceEnd(), false);
-    space->_name = this->moduleName_(segment->header.module)->asLocalString();
+    // Handle bootstrapped kernel which doesn't have a module object yet
+    if (segment->header.module != nullptr) {
+        space->_name = this->moduleName_(segment->header.module)->asLocalString();
+    } else {
+        space->_name = "BootstrappedKernel";
+    }
     this->_heap->addSpace_(space);
 }
 
