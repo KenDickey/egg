@@ -26,7 +26,9 @@
 #include <chrono>
 #include <cmath>
 #include <bit>
+#include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 
 using namespace Egg;
@@ -182,6 +184,12 @@ void Evaluator::initializePrimitives()
     this->addPrimitive("HostCurrentMilliseconds", &Evaluator::primitiveHostCurrentMilliseconds);
     this->addPrimitive("HostLog", &Evaluator::primitiveHostLog);
     this->addPrimitive("HostReadFile", &Evaluator::primitiveHostReadFile);
+    this->addPrimitive("HostWriteFile", &Evaluator::primitiveHostWriteFile);
+    this->addPrimitive("HostCreateDirectory", &Evaluator::primitiveHostCreateDirectory);
+    this->addPrimitive("HostPathExists", &Evaluator::primitiveHostPathExists);
+    this->addPrimitive("HostCurrentDirectory", &Evaluator::primitiveHostCurrentDirectory);
+    this->addPrimitive("HostGetEnv", &Evaluator::primitiveHostGetEnv);
+    this->addPrimitive("HostLoadModuleFromPath", &Evaluator::primitiveHostLoadModuleFromPath);
 
 
     //this->addPrimitive("PrepareForExecution", &Evaluator::primitivePrepareForExecution);
@@ -904,6 +912,58 @@ Object* Evaluator::primitiveHostLoadModule() {
     std::cout << "loading " << name << "..." << std::endl;
     auto module = (Object*)this->_runtime->loadModule_(this->_context->firstArgument()->asHeapObject());
     std::cout << " done loading " << name << std::endl;
+    return module;
+}
+
+Object* Evaluator::primitiveHostWriteFile() {
+    auto filename = this->_context->firstArgument()->asHeapObject()->asLocalString();
+    auto contents = this->_context->secondArgument()->asHeapObject()->asLocalString();
+    std::ofstream file(filename, std::ios::binary);
+    if (!file)
+        return this->failPrimitive();
+    file.write(contents.data(), contents.size());
+    return (Object*)this->_context->self();
+}
+
+Object* Evaluator::primitiveHostCreateDirectory() {
+    namespace fs = std::filesystem;
+    auto path = this->_context->firstArgument()->asHeapObject()->asLocalString();
+    std::error_code ec;
+    fs::create_directories(path, ec);
+    return (Object*)this->_runtime->booleanFor_(!ec);
+}
+
+Object* Evaluator::primitiveHostPathExists() {
+    namespace fs = std::filesystem;
+    auto path = this->_context->firstArgument()->asHeapObject()->asLocalString();
+    std::error_code ec;
+    bool exists = fs::exists(path, ec);
+    return (Object*)this->_runtime->booleanFor_(exists && !ec);
+}
+
+Object* Evaluator::primitiveHostCurrentDirectory() {
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    auto cwd = fs::current_path(ec);
+    if (ec)
+        return this->failPrimitive();
+    return (Object*)this->_runtime->newString_(cwd.string());
+}
+
+Object* Evaluator::primitiveHostGetEnv() {
+    auto name = this->_context->firstArgument()->asHeapObject()->asLocalString();
+    const char *value = std::getenv(name.c_str());
+    if (value == nullptr)
+        return (Object*)this->_runtime->_nilObj;
+    return (Object*)this->_runtime->newString_(std::string(value));
+}
+
+Object* Evaluator::primitiveHostLoadModuleFromPath() {
+    auto guard = this->_runtime->_heap->atGCUnsafepoint();
+    auto path = this->_context->firstArgument()->asHeapObject()->asLocalString();
+    std::cout << "loading from " << path << "..." << std::endl;
+    auto module = (Object*)this->_runtime->loadModuleFromPath_(path);
+    std::cout << " done loading " << path << std::endl;
     return module;
 }
 

@@ -163,6 +163,36 @@ KernelModule >> readFile: filename [
 ]
 
 { #category : #services }
+KernelModule >> writeFile: aFilename contents: aString [
+	^host writeFile: aFilename contents: aString
+]
+
+{ #category : #services }
+KernelModule >> createDirectory: aString [
+	^host createDirectory: aString
+]
+
+{ #category : #services }
+KernelModule >> pathExists: aString [
+	^host pathExists: aString
+]
+
+{ #category : #services }
+KernelModule >> currentDirectory [
+	^host currentDirectory
+]
+
+{ #category : #services }
+KernelModule >> getEnv: aString [
+	^host getEnv: aString
+]
+
+{ #category : #services }
+KernelModule >> loadModuleFromPath: aString [
+	^host loadModuleFromPath: aString
+]
+
+{ #category : #services }
 KernelModule >> load: aSymbol [
 	| filename |
 	loadedModules at: aSymbol ifPresent: [:module | ^module].
@@ -254,6 +284,7 @@ KernelModule >> unhandledExceptionHandler: aClosure [
 
 { #category : #loading }
 KernelModule >> useHostModuleLoader [
+	host setupDefaultSearchPaths.
 	self addModuleLoader: host.
 ]
 

@@ -221,10 +221,16 @@ private:
 	Object* primitiveHostCurrentMilliseconds();
 	Object* primitiveHostFixOverrides();
 	Object* primitiveHostInitializeFFI();
+	Object* primitiveHostCreateDirectory();
+	Object* primitiveHostCurrentDirectory();
+	Object* primitiveHostGetEnv();
 	Object* primitiveHostLoadModule();
+	Object* primitiveHostLoadModuleFromPath();
 	Object* primitiveHostLog();
+	Object* primitiveHostPathExists();
 	Object* primitiveHostPlatformName();
 	Object* primitiveHostReadFile();
+	Object* primitiveHostWriteFile();
 	Object* primitiveNew();
 	Object* primitiveNewBytes();
 	Object* primitiveNewObjectHeap();
