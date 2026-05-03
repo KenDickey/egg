@@ -19,3 +19,7 @@ target_include_directories(bootstrapper_lib PUBLIC
 # Link bootstrapper with runtime
 target_link_libraries(bootstrapper_lib PUBLIC egg_runtime)
 
+
+if(BUILD_TESTING)
+    add_subdirectory(tests)
+endif()
