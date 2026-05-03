@@ -14,7 +14,7 @@ TestsModule >> imports [
 	^{
 		#Kernel -> #(Array Error Exception OrderedCollection UndefinedObject WideString WideSymbol).
 		#Compiler -> #(SCompiler SCompilationError SMethodNode SSelectorNode SMessageNode SStringToken InlinedArgEnvironment MethodScope).
-		#SUnit -> #(TestCase TestResult)
+		#SUnit -> #(TestCase TestResult TestSuite)
 	}
 ]
 
@@ -23,7 +23,7 @@ TestsModule >> main: anArray [
 	| suite result |
 	Kernel log: 'Running Compiler tests...
 '.
-	suite := SmalltalkScannerTest buildTestSuite.
+	suite := TestSuite forModule: self.
 	Kernel log: 'suite built with ', suite tests size printString, ' tests
 '.
 	result := suite run.

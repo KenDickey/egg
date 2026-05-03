@@ -1,3 +1,8 @@
+"
+    Copyright (c) 2026, Javier Pimás.
+    See (MIT) license in root directory.
+"
+
 Class {
 	#name : #MessageInliner,
 	#superclass : #Object,
@@ -13,7 +18,7 @@ MessageInliner >> inline: aMessageNode [
 	message := aMessageNode.
 	message receiver isSuper
 		ifTrue: [ ^ self ].
-	(message isCascadeMessage and: [ message receiver isBlockNode ])
+	message isCascadeMessage
 		ifTrue: [ ^ self ].
 	s := message selector value.
 	s == #ifTrue:

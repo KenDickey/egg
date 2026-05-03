@@ -199,7 +199,10 @@ InternalReadStream >> peek [
 
 { #category : #peeking }
 InternalReadStream >> peekFor: token [
-	^self peek = token ifTrue: [position := position + 1]; yourself
+	| found |
+	found := self peek = token.
+	found ifTrue: [position := position + 1].
+	^found
 ]
 
 { #category : #accessing }
