@@ -1178,13 +1178,17 @@ Object* Evaluator::primitiveStringReplaceFromToWithStartingAt() {
     auto toint = to->asSmallInteger()->asNative();
     auto startingint = starting->asSmallInteger()->asNative();
 
-    if (toint > receiver->size())
+    // Empty replacement (from > to) is a no-op.
+    if (fromint > toint)
+        return (Object*)receiver;
+
+    if (fromint < 1 || toint > (intptr_t)receiver->size())
         return this->failPrimitive();
 
-    auto len = to - from + 1;
+    auto len = toint - fromint + 1;
     auto last = startingint + len - 1;
     auto hsource = source->asHeapObject();
-    if (last > hsource->size())
+    if (startingint < 1 || last > (intptr_t)hsource->size())
         return this->failPrimitive();
 
     receiver->replaceBytesFrom_to_with_startingAt_(
