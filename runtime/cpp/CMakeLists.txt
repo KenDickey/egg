@@ -4,6 +4,10 @@ set( CMAKE_VERBOSE_MAKEFILE on )
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Default Debug builds to -O1 so the VM is usable while still debuggable.
+set(CMAKE_C_FLAGS_DEBUG "-g -O1" CACHE STRING "Flags used by the C compiler during DEBUG builds.")
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O1" CACHE STRING "Flags used by the C++ compiler during DEBUG builds.")
+
 set(CMAKE_TRY_COMPILE_TARGET_TYPE "STATIC_LIBRARY")
 set(BUILD_SHARED_LIBS OFF)
 

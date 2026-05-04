@@ -1,0 +1,15 @@
+#!/bin/sh
+# epm - Egg Package Manager
+# Finds and runs the egg binary with the EPM module
+
+# Determine egg binary location
+if [ -n "$EGG_HOME" ] && [ -x "$EGG_HOME/bin/egg" ]; then
+    EGG="$EGG_HOME/bin/egg"
+elif command -v egg >/dev/null 2>&1; then
+    EGG=egg
+else
+    echo "Error: egg binary not found. Set EGG_HOME or add egg to PATH." >&2
+    exit 1
+fi
+
+exec "$EGG" EPM "$@"

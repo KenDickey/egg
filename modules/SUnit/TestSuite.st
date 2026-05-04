@@ -23,6 +23,16 @@ TestSuite class >> availableEvents [
 ]
 
 { #category : #'instance creation' }
+TestSuite class >> forModule: aModule [
+	| suite |
+	suite := self named: aModule name.
+	aModule classes do: [:cls |
+		(cls inheritsFrom: TestCase) ifTrue: [
+			suite addTest: cls buildTestSuite]].
+	^suite
+]
+
+{ #category : #'instance creation' }
 TestSuite class >> fromString: aString [
 	| suite cm |
 	suite := self named: 'From strings'.
@@ -193,6 +203,18 @@ TestSuite >> run [
 	result := TestResult new.
 	self run: result.
 	^result
+]
+
+{ #category : #running }
+TestSuite >> runDebug [
+	| res |
+	res := self resources.
+	res do: [:resource | resource beAvailableFor: self].
+	[
+		self allCases do: [:test |
+			Kernel log: 'running ', test printString; log: String cr.
+			test runCase]]
+		sunitEnsure: [res do: [:resource | resource reset]]
 ]
 
 { #category : #running }

@@ -31,8 +31,12 @@ public:
     const Egg::string& source() const { return _source; }
     void source(const Egg::string& s) { _source = s; }
 
+    const Egg::string& category() const { return _category; }
+    void category(const Egg::string& c) { _category = c; }
+
 private:
     Egg::string _source;
+    Egg::string _category;
 };
 
 // ---- SpeciesSpec (base for ClassSpec and MetaclassSpec) ----
@@ -97,7 +101,7 @@ private:
 
 class ClassSpec : public SpeciesSpec {
 public:
-    ClassSpec() : _metaclass(nullptr), _variable(false), _pointers(true) {}
+    ClassSpec() : _metaclass(nullptr), _variable(false), _pointers(true), _isExtension(false) {}
 
     const Egg::string& name() const override { return _name; }
     void name(const Egg::string& n) { _name = n; }
@@ -115,8 +119,14 @@ public:
     bool isPointers() const { return _pointers; }
     void isPointers(bool p) { _pointers = p; }
 
+    bool isExtension() const { return _isExtension; }
+    void isExtension(bool e) { _isExtension = e; }
+
     const std::vector<Egg::string>& classVarNames() const { return _classVarNames; }
     void classVarNames(const std::vector<Egg::string>& cvars) { _classVarNames = cvars; }
+
+    const Egg::string& comment() const { return _comment; }
+    void comment(const Egg::string& c) { _comment = c; }
 
 private:
     Egg::string _name;
@@ -124,7 +134,9 @@ private:
     MetaclassSpec* _metaclass;
     bool _variable;
     bool _pointers;
+    bool _isExtension;
     std::vector<Egg::string> _classVarNames;
+    Egg::string _comment;
 };
 
 // ---- ModuleSpec (minimal) ----

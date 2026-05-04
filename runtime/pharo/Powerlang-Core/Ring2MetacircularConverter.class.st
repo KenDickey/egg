@@ -548,9 +548,18 @@ Ring2MetacircularConverter >> instantiateMetaobjects [
 { #category : 'initialization' }
 Ring2MetacircularConverter >> loadModule: symbol [
 
-	| spec module extensions sorted classes |
-	spec := self readModuleSpec: symbol.
-	module := self createModuleClassAndInstance: symbol spec: spec.
+	| path |
+	path := self findModulePath: symbol.
+	^self loadModuleFromPath: path
+]
+
+{ #category : 'initialization' }
+Ring2MetacircularConverter >> loadModuleFromPath: path [
+
+	| name spec module extensions sorted classes |
+	name := path basename.
+	spec := EggBootstrapModule readSpec: name at: path parent.
+	module := self createModuleClassAndInstance: name spec: spec.
 	sorted := self classesSortedBySuperclass: spec classes.
 	classes := sorted collect: [ :classSpec | 
 		           self createNewClassFrom: classSpec in: module ].
@@ -645,15 +654,6 @@ Ring2MetacircularConverter >> readFile: pathname [
 	reference := pathname asFileReference.
 	reference exists ifFalse: [ ^nil ].
 	^reference readStream contents
-]
-
-{ #category : 'initialization' }
-Ring2MetacircularConverter >> readModuleSpec: aSymbol [
-	| path |
-	path := self findModulePath: aSymbol.
-	^EggBootstrapModule readSpec: aSymbol at: path parent
-
-	
 ]
 
 { #category : 'initialization' }

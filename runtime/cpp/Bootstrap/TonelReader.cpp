@@ -7,6 +7,7 @@
 
 #include "TonelReader.h"
 #include "CodeSpecs.h"
+#include "Egg.h"
 
 namespace Egg {
 
@@ -41,7 +42,7 @@ ClassSpec* TonelReader::parseFile(const std::string& utf8Source) {
     _source = Egg::string(utf8Source);
     _pos = 0;
 
-    readComments();
+    Egg::string comment = readComments();
     Egg::string type = readType();
     auto fields = readDefinition();
 
@@ -50,9 +51,16 @@ ClassSpec* TonelReader::parseFile(const std::string& utf8Source) {
     meta->instanceClass(spec);
     spec->metaclass(meta);
 
+    if (!comment.empty())
+        spec->comment(comment);
+
     spec->name(fields.count("name") ? fields["name"] : Egg::string(""));
-    if (type == "Class") {
+    if (type == "Extension") {
+        spec->isExtension(true);
+    } else if (type == "Class") {
         spec->supername(fields.count("superclass") ? fields["superclass"] : Egg::string(""));
+    } else {
+        error_("Unknown Tonel type: " + type.toUtf8());
     }
 
     // #type field: #variable (pointer-indexed), #bytes (byte-indexed)
@@ -95,12 +103,16 @@ ClassSpec* TonelReader::parseFile(const std::string& utf8Source) {
 }
 
 // Mirrors TonelReader >> readComments
-void TonelReader::readComments() {
+Egg::string TonelReader::readComments() {
     skipSeparators();
     if (!atEnd() && peek() == U'"') {
         next(); // skip opening "
+        size_t start = _pos;
         skipComment();
+        // _pos is now past the closing "
+        return _source.substr(start, _pos - 1 - start);
     }
+    return Egg::string("");
 }
 
 // Mirrors TonelReader >> readType  (via ReadStream >> nextWordOrNumber)
@@ -133,7 +145,7 @@ void TonelReader::readMethods(ClassSpec* spec, MetaclassSpec* meta) {
 void TonelReader::readMethod(ClassSpec* spec, MetaclassSpec* meta) {
     // 1. STON metadata  { #category : #accessing }
     skipSeparators();
-    parseSTONMap(); // metadata — we don't need category during bootstrap
+    auto metadata = parseSTONMap();
 
     // 2. ClassName [class] >> selector...signature [
     skipSeparators();
@@ -180,10 +192,14 @@ void TonelReader::readMethod(ClassSpec* spec, MetaclassSpec* meta) {
     // 5. Build method source = signature \n\t body
     Egg::string methodSource = signature + "\n\t" + body;
 
+    MethodSpec ms(methodSource);
+    if (metadata.count("category"))
+        ms.category(metadata["category"]);
+
     if (isClassSide)
-        meta->addMethod(MethodSpec(methodSource));
+        meta->addMethod(ms);
     else
-        spec->addMethod(MethodSpec(methodSource));
+        spec->addMethod(ms);
 }
 
 // ── nextBlock ────────────────────────────────────────────────────────
@@ -201,16 +217,24 @@ Egg::string TonelReader::nextBlock() {
 
     int nested = 1;
     char32_t prev = 0;
-    while (!atEnd() && nested > 0) {
+    while (nested > 0) {
+        if (atEnd())
+            error_("unterminated method body");
         char32_t ch = next();
-        if (ch == U'[' && prev != U'$') {
+        if (prev == U'$') {
+            // This character is a character literal value (e.g. $[ $] $' $" $$)
+            // Skip it entirely — don't count brackets or enter strings/comments
+            prev = 0;
+            continue;
+        }
+        if (ch == U'[') {
             nested++;
-        } else if (ch == U']' && prev != U'$') {
+        } else if (ch == U']') {
             nested--;
             if (nested == 0) break;
-        } else if (ch == U'\'' && prev != U'$') {
+        } else if (ch == U'\'') {
             skipString();
-        } else if (ch == U'"' && prev != U'$') {
+        } else if (ch == U'"') {
             skipComment();
         }
         prev = ch;

@@ -32,6 +32,8 @@ public:
 
 	Runtime* loadKernel();
 	HeapObject* loadModule_(const std::string& name);
+	HeapObject* loadModuleFromPath_(const std::string& path);
+	std::string modulePath_(const std::string& name);
 
 	// .ems loading support
 	FileImageSegment* loadModuleFromFile(const std::string &filename);

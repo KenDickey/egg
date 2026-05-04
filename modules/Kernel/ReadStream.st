@@ -339,16 +339,19 @@ ReadStream >> peek: n [
 
 { #category : #peeking }
 ReadStream >> peekFor: token [
-	^self peek = token ifTrue: [self skip]; yourself
+	| found |
+	found := self peek = token.
+	found ifTrue: [self skip].
+	^found
 ]
 
 { #category : #peeking }
 ReadStream >> peekForAll: aCollection [
-	| n |
+	| n found |
 	n := aCollection size.
-	^((self peek: n) equalsTo: aCollection)
-		ifTrue: [self skip: n];
-		yourself
+	found := (self peek: n) equalsTo: aCollection.
+	found ifTrue: [self skip: n].
+	^found
 ]
 
 { #category : #'reverse reading' }
@@ -532,7 +535,7 @@ ReadStream >> upToClosing: open [
 	"
 	'|things||some|-}blah' readStream next; upToClosing: $|
 	"
-	| start end result |
+	| start end result opens |
 	start := self position.
 	[
 		self upTo: open.
@@ -540,7 +543,9 @@ ReadStream >> upToClosing: open [
 			self position: start.
 			^nil].
 		self skip: 1.
-		self peek = open ifTrue: [self next]; yourself] whileTrue.
+		opens := self peek = open.
+		opens ifTrue: [self next].
+		opens] whileTrue.
 	end := self position.
 	self position: start.
 	result := self next: end - start - 1.

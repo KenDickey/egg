@@ -20,7 +20,7 @@ void MessageInliner::inline_(SMessageNode* aMessageNode) {
         return;
     }
     
-    if (_message->isCascadeMessage() && _message->receiver()->isBlock()) {
+    if (_message->isCascadeMessage()) {
         return;
     }
     

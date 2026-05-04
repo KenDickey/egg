@@ -34,12 +34,15 @@ private:
     // Class creation via runtime messages
     Object* createNewClassFrom_(ClassSpec* spec, Object* module);
     void createMethodsOf_(Object* cls, ClassSpec* spec);
-    void createNewMethod_(const Egg::string& source, Object* species);
+    void createNewMethod_(const Egg::string& source, Object* species, const Egg::string& category = Egg::string(""));
+    Object* createExtensionMethod_(const Egg::string& source, Object* species);
 
     // Literal transfer helpers
     Object* transferLiteral_(const LiteralValue& lit, Object* method);
     Object* transferBlock_(const LiteralValue::BlockInfo& blockInfo, Object* method);
     Object* transferArray_(const std::vector<LiteralValue>& elements);
+    Object* transferCharacter_(uint32_t codePoint);
+    Object* newLargeInteger_(const std::vector<uint8_t>& leBytes, bool negative);
 
     // Lookup helpers
     Object* lookupClass_(const Egg::string& name);

@@ -37,6 +37,7 @@ Bootstrapper::Bootstrapper(const std::string& kernelPath, Loader* loader)
       _stringClass(nullptr), _wideStringClass(nullptr),
       _arrayClass(nullptr), _methodDictionaryClass(nullptr) {
     _compiler = std::make_unique<SSmalltalkCompiler>();
+    _methodDictBuilder = std::make_unique<ArrayMethodDictBuilder>(this);
 }
 
 Bootstrapper::~Bootstrapper() {
@@ -460,6 +461,7 @@ void Bootstrapper::createRuntimeWithBootstrappedKernel() {
     kernel->addExport("Ephemeron", _classes.at("Ephemeron"));
     kernel->addExport("ProcessVMStack", _classes.at("ProcessVMStack"));
     kernel->addExport("OpenHashTable", _classes.at("OpenHashTable"));
+    kernel->addExport("Character", _classes.at("Character"));
 
     _loader->_runtime = new Runtime(_loader, kernel, _symbolProvider);
     _loader->_runtime->addSegmentSpace_(kernel);
@@ -472,6 +474,11 @@ void Bootstrapper::createRuntimeWithBootstrappedKernel() {
 
     // Fill symbol table
     fillSymbolTable();
+
+    // Convert Array method dicts to proper MethodDictionary objects, then
+    // switch from array-based to Smalltalk message-based method installation
+    convertMethodDictionaries();
+    _methodDictBuilder = std::make_unique<SmalltalkMethodDictBuilder>(_loader->_runtime);
 }
 
 // =========================================================================
@@ -489,6 +496,50 @@ void Bootstrapper::fillSymbolTable() {
     }
 
     _loader->_runtime->switchToDynamicSymbolProvider_(tableRef.get()->asHeapObject());
+}
+
+// =========================================================================
+// Phase 9: Convert Array method dicts to proper MethodDictionary objects
+// =========================================================================
+
+void Bootstrapper::convertMethodDictionaries() {
+    for (const auto& [className, cls] : _classes) {
+        convertBehaviorMethodDict_(cls);
+        convertBehaviorMethodDict_(_metaclasses.at(className));
+    }
+}
+
+void Bootstrapper::convertBehaviorMethodDict_(HeapObject* species) {
+    auto runtime = _loader->_runtime;
+    HeapObject* behavior = species->slot(Offsets::SpeciesInstanceBehavior)->asHeapObject();
+    Object* mdObj = behavior->slot(Offsets::BehaviorMethodDictionary);
+
+    HeapObject* md = mdObj->asHeapObject();
+    ASSERT (runtime->speciesOf_((Object*)md) == _arrayClass);
+
+    // Count actual methods in the array (stops at first nil selector)
+    uint32_t count = 0;
+    uint32_t size = md->size();
+    for (uint32_t i = 0; i + 1 < size; i += 2) {
+        if (md->slot(i) == (Object*)_nilObj) break;
+        count++;
+    }
+
+    // Create MethodDictionary new: count and populate via public API
+    auto mdClassObj = (Object*)_classes.at("MethodDictionary");
+    auto sizeArg = (Object*)runtime->newInteger_(count);
+    auto newMd = runtime->sendLocal_to_with_("new:", mdClassObj, sizeArg);
+    GCedRef newMdRef(newMd);
+
+    for (uint32_t i = 0; i + 1 < size; i += 2) {
+        Object* selector = md->slot(i);
+        if (selector == (Object*)_nilObj) break;
+        Object* method = md->slot(i + 1);
+        runtime->sendLocal_to_with_with_("at:put:", newMdRef.get(), selector, method);
+    }
+
+    // Replace the behavior's method dict
+    behavior->slot(Offsets::BehaviorMethodDictionary) = newMdRef.get();
 }
 
 // =========================================================================
@@ -583,16 +634,7 @@ void Bootstrapper::compileAndInstallMethod_(const Egg::string& source, HeapObjec
     }
 
     // Install in behavior's method dictionary
-    HeapObject* behavior = cls->slot(Offsets::SpeciesInstanceBehavior)->asHeapObject();
-    Object* methodDictObj = behavior->slot(Offsets::BehaviorMethodDictionary);
-    HeapObject* methodArray;
-    if (methodDictObj == nullptr || methodDictObj == (Object*)_nilObj) {
-        methodArray = newMethodArray();
-        behavior->slot(Offsets::BehaviorMethodDictionary) = (Object*)methodArray;
-    } else {
-        methodArray = methodDictObj->asHeapObject();
-    }
-    addMethodToArray_(methodArray, internSymbol_(selector), (Object*)method);
+    _methodDictBuilder->installMethod((Object*)cls, internSymbol_(selector), (Object*)method);
 }
 
 Object* Bootstrapper::transferLiteral_(const LiteralValue& lit, HeapObject* method) {
@@ -602,27 +644,43 @@ Object* Bootstrapper::transferLiteral_(const LiteralValue& lit, HeapObject* meth
         case LiteralValue::String:
             return (Object*)newString_(lit.asString());
         case LiteralValue::Integer:
-            return (Object*)newSmallInteger_(lit.asInteger());
-        case LiteralValue::Float:
-            return (Object*)_nilObj;
+            return (Object*)newSmallInteger_((intptr_t)lit.asInteger());
+        case LiteralValue::LargeInteger:
+            return (Object*)newLargeInteger_(lit.asLargeIntegerBytes(), lit.isLargeIntegerNegative());
+        case LiteralValue::Float: {
+            double value = lit.asFloat();
+            return (Object*)newBytes_("Float", &value, sizeof(double));
+        }
         case LiteralValue::Character:
-            return (Object*)newSmallInteger_((intptr_t)lit.asCharacter());
+            return transferCharacter_(lit.asCharacter());
         case LiteralValue::Boolean:
             return (Object*)(lit.asBoolean() ? _trueObj : _falseObj);
         case LiteralValue::Nil:
             return (Object*)_nilObj;
         case LiteralValue::Array:
             return (Object*)transferArray_(lit.asArray());
-        case LiteralValue::ByteArray: {
-            HeapObject* ba = newByteArray_(lit.asByteArray());
-            return (Object*)ba;
-        }
+        case LiteralValue::ByteArray:
+            return (Object*)newByteArray_(lit.asByteArray());
         case LiteralValue::Block:
             return (Object*)transferBlock_(lit.asBlock(), method);
         default:
             error("transferLiteral_: unimplemented literal tag");
             return (Object*)_nilObj;
     }
+}
+
+Object* Bootstrapper::transferCharacter_(uint32_t codePoint) {
+    auto it = _characterMap.find(codePoint);
+    if (it != _characterMap.end()) return (Object*)it->second;
+    HeapObject* character = newSlots_("Character");
+    character->slot(0) = (Object*)newSmallInteger_((intptr_t)codePoint);
+    _characterMap[codePoint] = character;
+    return (Object*)character;
+}
+
+HeapObject* Bootstrapper::newLargeInteger_(const std::vector<uint8_t>& leBytes, bool negative) {
+    const char* className = negative ? "LargeNegativeInteger" : "LargePositiveInteger";
+    return newBytes_(className, leBytes.data(), (uint32_t)leBytes.size());
 }
 
 HeapObject* Bootstrapper::transferArray_(const std::vector<LiteralValue>& elements) {

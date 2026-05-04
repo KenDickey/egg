@@ -34,7 +34,7 @@ public:
 
 class DynamicSymbolProvider : public SymbolProvider {
     Runtime* _runtime;
-    HeapObject* _symbolTable;
+    GCedRef* _symbolTable;
     std::map<Egg::string, GCedRef*> _cache;
 public:
     DynamicSymbolProvider(Runtime* runtime, HeapObject* symbolTable);
@@ -42,7 +42,7 @@ public:
     Object* symbolFor_(const Egg::string& name) override;
     Object* existingSymbolFor_(const Egg::string& name) override;
 
-    void symbolTable_(HeapObject* table) { _symbolTable = table; }
+    void symbolTable_(HeapObject* table) { _symbolTable->set_((Object*)table); }
     std::map<Egg::string, GCedRef*>& cache() { return _cache; }
 };
 

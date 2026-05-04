@@ -105,6 +105,7 @@ public:
     HeapObject* addSymbol_(const std::string &str);
     void switchToDynamicSymbolProvider_(HeapObject* symbolTable);
     HeapObject* loadModule_(HeapObject *name);
+    HeapObject* loadModuleFromPath_(const std::string &path);
 	void addSegmentSpace_(ImageSegment *segment);
 
     uintptr_t hashFor_(Object *anObject);
@@ -509,6 +510,7 @@ public:
 	    this->_ephemeronClass =            _kernel->_exports["Ephemeron"];
 		this->_processStackClass =         _kernel->_exports["ProcessVMStack"];
         this->_openHashTableClass =        _kernel->_exports["OpenHashTable"];
+        this->_characterClass =             _kernel->_exports["Character"];
 
         this->_smallIntegerBehavior = this->speciesInstanceBehavior_(_smallIntegerClass);
 	}
@@ -535,6 +537,7 @@ public:
 	HeapObject *_ephemeronClass;
 	HeapObject *_processStackClass;
     HeapObject *_openHashTableClass;
+    HeapObject *_characterClass;
 	HeapObject *_closureReturnMethod;
 
     HeapObject *_smallIntegerBehavior;
