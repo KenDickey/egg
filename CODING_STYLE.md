@@ -34,6 +34,9 @@ tasks := Set new.
 set := Set new.
 ```
 
+Do not reuse a temporary name for a different value within the same method. Each
+temporary should be assigned once.
+
 ### Method Arguments
 
 Arguments are named after the **expected type**, prefixed by an article (`a`, `an`):
@@ -75,6 +78,22 @@ Method selectors should be **short and succinct**, one or two words if possible:
 ### Instance Variables and Class Names
 
 Keep them short and concise, following the same spirit as temporaries.
+
+### No Abbreviations
+
+Do not abbreviate words in names. Use the full word:
+
+```smalltalk
+"Avoid"
+cmdNew
+reqCount
+msg
+
+"Preferred"
+commandNew
+requestCount
+message
+```
 
 ## Methods
 
