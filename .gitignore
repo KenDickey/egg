@@ -1,2 +1,5 @@
 .DS_Store
 release/*
+build
+runtime/cpp/build-*
+.vscode/settings.json
