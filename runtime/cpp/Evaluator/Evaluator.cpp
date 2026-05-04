@@ -31,6 +31,8 @@
 #include <filesystem>
 #include <fstream>
 
+#include "Compat.h"
+
 using namespace Egg;
 
 // as libffi cannot directly call C++ lambdas, here is a plain C wrapper
@@ -1141,7 +1143,7 @@ Object* Evaluator::primitiveSMITimes() {
     intptr_t a = this->_context->self()->asSmallInteger()->asNative();
     intptr_t b = arg->asSmallInteger()->asNative();
     intptr_t result;
-    if (__builtin_mul_overflow(a, b, &result) || result < SmallInteger::SMALLINT_MIN || result > SmallInteger::SMALLINT_MAX)
+    if (mul_overflow_iptr(a, b, &result) || result < SmallInteger::SMALLINT_MIN || result > SmallInteger::SMALLINT_MAX)
         return this->failPrimitive();
     return newIntObject(result);
 }
@@ -1527,7 +1529,7 @@ Object* Evaluator::underprimitiveSMITimes(Object *receiver, std::vector<Object*>
     intptr_t a = receiver->asSmallInteger()->asNative();
     intptr_t b = args[0]->asSmallInteger()->asNative();
     intptr_t result;
-    if (__builtin_mul_overflow(a, b, &result) || result < SmallInteger::SMALLINT_MIN || result > SmallInteger::SMALLINT_MAX)
+    if (mul_overflow_iptr(a, b, &result) || result < SmallInteger::SMALLINT_MIN || result > SmallInteger::SMALLINT_MAX)
         return (Object*)_nilObj;
     return newIntObject(result);
 }
