@@ -556,23 +556,23 @@ void SExpressionLinearizer::visitMethod(SMethod *anSMethod) {
 
 void SExpressionLinearizer::visitMethod(SMethod *anSMethod, HeapObject *method) {
     this->reset();
-    auto primitive = anSMethod->pragma();
-    if (primitive != nullptr) {
+    auto pragmaObj = anSMethod->pragma();
+    if (pragmaObj != nullptr) {
         auto name = (_runtime->methodIsFFI_(method)) ? _runtime->existingSymbolFrom_("FFICall") : (Object*)anSMethod->primitive();
 
-        PrimitivePointer primitive;
         auto it = this->_primitives.find(name);
         if (it == this->_primitives.end()) {
-            error_("primitive " + name->printString() + " not found");
+            std::string symStr = name->asHeapObject()->printString();
+            fprintf(stderr, "Warning: primitive not found: %s, falling through to Smalltalk code\n", symStr.c_str());
         }
         else {
-            primitive = it->second;
+            PrimitivePointer prim = it->second;
+            this->primitive_(prim);
+            this->returnOp();
         }
-
-        this->primitive_(primitive);
-        this->returnOp();
     }
-    this->_stackTop = _runtime->methodTempCount_(anSMethod->compiledCode());
+    auto cc = anSMethod->compiledCode();
+    this->_stackTop = _runtime->methodTempCount_(cc);
     auto statements = anSMethod->statements();
     for (auto node : statements) {
         node->acceptVisitor_(this);
