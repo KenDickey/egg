@@ -15,6 +15,7 @@ add_executable(compiler_tests
 
 target_link_libraries(compiler_tests PRIVATE
     egg_compiler
+    bootstrapper_lib
     egg_runtime
     Catch2::Catch2
 )
