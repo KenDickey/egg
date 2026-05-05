@@ -182,6 +182,7 @@ private:
     Object* boolObject(bool aBoolean);
 
 	Object* failPrimitive();
+	Object* failPrimitiveWith_(Object* errorObject);
 
 	Object* primitiveAt();
 	Object* primitiveAtPut();
@@ -227,6 +228,7 @@ private:
 	Object* primitiveHostLoadModule();
 	Object* primitiveHostLoadModuleFromPath();
 	Object* primitiveHostLog();
+	Object* primitiveHostExit();
 	Object* primitiveHostPathExists();
 	Object* primitiveHostPlatformName();
 	Object* primitiveHostReadFile();
@@ -238,6 +240,14 @@ private:
 	Object* primitivePerformWithArguments();
 	Object* primitiveProcessBP();
 	Object* primitiveProcessStackAt();
+	Object* primitiveProcessVMStackInitializeWithNewBuffer();
+	Object* primitiveProcessVMStackInitializeWithActiveBuffer();
+	Object* primitiveProcessVMStackBufferSize();
+	Object* primitiveProcessVMStackAtPut();
+	Object* primitiveProcessVMStackBpAtPut();
+	Object* primitiveProcessVMStackPcAtPut();
+	Object* primitiveProcessVMStackContextSwitchTo();
+	Object* primitivePrepareForExecution();
 	Object* primitivePrimeFor();
 	Object* primitivePrimeFor_(auto anInteger);
 	Object* primitiveSMIBitAnd();

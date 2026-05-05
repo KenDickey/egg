@@ -2,6 +2,7 @@
 #include "EvaluationContext.h"
 
 #include <iomanip>
+#include <iostream>
 #include <sstream>
 
 #include "Runtime.h"
@@ -24,6 +25,7 @@ EvaluationContext::EvaluationContext(Runtime *runtime) : _runtime(runtime)
     _regBP = _regPC = 0;
     _regS = nullptr;
     _stack = new Object*[STACK_SIZE];
+    _stackSize = STACK_SIZE;
 }
 
 HeapObject* EvaluationContext::classBinding()

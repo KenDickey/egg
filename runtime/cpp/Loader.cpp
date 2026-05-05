@@ -9,6 +9,7 @@
 #include "FileImageSegment.h"
 #include <algorithm>
 #include <iostream>
+#include <stdexcept>
 
 namespace Egg {
 
@@ -25,7 +26,7 @@ std::string Loader::findModulesDir_() {
         return _modulesDir;
 
     std::vector<std::string> prefixes = {
-        "../../../../", "../../../", "../../", "../", "./"
+        "./", "../", "../../", "../../../", "../../../../"
     };
     for (const auto& prefix : prefixes) {
         auto candidate = prefix + _modulesDir;
@@ -96,8 +97,7 @@ HeapObject* Loader::loadModule_(const std::string& name) {
         module = sourceLoader.loadModuleFromSource(modPath);
     }
     else {
-        error(("Module not found: " + name).c_str());
-        return nullptr;
+        throw std::runtime_error("Module not found: " + name);
     }
 
     _loadedModules[name] = module;
@@ -143,8 +143,7 @@ HeapObject* Loader::loadModuleFromPath_(const std::string& path) {
         module = sourceLoader.loadModuleFromSource(path);
     }
     else {
-        error(("Module not found at path: " + path).c_str());
-        return nullptr;
+        throw std::runtime_error("Module not found at path: " + path);
     }
 
     _loadedModules[name] = module;

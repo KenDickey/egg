@@ -6,8 +6,17 @@
 Class {
 	#name : #ProcessVMStack,
 	#superclass : #ProcessStack,
+	#instVars : [
+		'buffer',
+		'bufferSize'
+	],
 	#category : #Kernel
 }
+
+{ #category : 'instance creation' }
+ProcessVMStack class >> on: aProcess [
+	^self new process: aProcess
+]
 
 { #category : 'Primitives' }
 ProcessVMStack >> at: anInteger [
@@ -20,8 +29,13 @@ ProcessVMStack >> at: anInteger put: anObject [
 ]
 
 { #category : 'Primitives' }
-ProcessVMStack >> basicInitialize [
-	<primitive: ProcessVMStackInitialize>
+ProcessVMStack >> initializeWithNewBuffer [
+	<primitive: ProcessVMStackInitializeWithNewBuffer>
+]
+
+{ #category : 'Primitives' }
+ProcessVMStack >> initializeWithActiveBuffer [
+	<primitive: ProcessVMStackInitializeWithActiveBuffer>
 ]
 
 { #category : #primitives }
@@ -49,10 +63,12 @@ ProcessVMStack >> contextSwitchTo: aProcessStack [
 	<primitive: ProcessVMStackContextSwitchTo>
 ]
 
-{ #category : 'initializing' }
-ProcessVMStack >> initialize [
-	super initialize.
-	self basicInitialize
+{ #category : 'accessing' }
+ProcessVMStack >> process: aProcess [
+	super process: aProcess.
+	aProcess isActive
+		ifTrue: [self initializeWithActiveBuffer]
+		ifFalse: [self initializeWithNewBuffer]
 ]
 
 { #category : 'Primitives' }

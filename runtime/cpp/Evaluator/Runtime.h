@@ -476,17 +476,58 @@ public:
 		return process->slot(Offsets::ProcessTopContext) != (Object*)KnownObjects::nil;
 	}
 
-	HeapObject* processVMStackProcess_(HeapObject * processVMStack) {
-		return processVMStack->slot(Offsets::ProcessVMStackProcess)->asHeapObject();
+	HeapObject* processStackProcess_(HeapObject * processStack) {
+		return processStack->slot(Offsets::ProcessStackProcess)->asHeapObject();
 	}
 
-	uintptr_t processVMStackSP_(HeapObject * processVMStack) {
-		return processVMStack->slot(Offsets::ProcessVMStackSP)->asSmallInteger()->asNative();
+	void processStackProcess_put_(HeapObject * processStack, Object *process) {
+		processStack->slot(Offsets::ProcessStackProcess) = process;
 	}
 
-	uintptr_t processVMStackBP_(HeapObject * processVMStack) {
-		return processVMStack->slot(Offsets::ProcessVMStackBP)->asSmallInteger()->asNative();
+	uintptr_t processStackSP_(HeapObject * processStack) {
+		return processStack->slot(Offsets::ProcessStackSP)->asSmallInteger()->asNative();
 	}
+
+	void processStackSP_put_(HeapObject * processStack, uintptr_t sp) {
+		processStack->slot(Offsets::ProcessStackSP) = (Object*)newInteger_(sp);
+	}
+
+	uintptr_t processStackBP_(HeapObject * processStack) {
+		return processStack->slot(Offsets::ProcessStackBP)->asSmallInteger()->asNative();
+	}
+
+	void processStackBP_put_(HeapObject * processStack, uintptr_t bp) {
+		processStack->slot(Offsets::ProcessStackBP) = (Object*)newInteger_(bp);
+	}
+
+	Object* processStackEnv_(HeapObject * processStack) {
+		return processStack->slot(Offsets::ProcessStackEnv);
+	}
+
+	void processStackEnv_put_(HeapObject * processStack, Object *env) {
+		processStack->slot(Offsets::ProcessStackEnv) = env;
+	}
+
+	Object** processVMStackBuffer_(HeapObject * processVMStack) {
+		auto smi = processVMStack->slot(Offsets::ProcessVMStackBuffer);
+		if (smi == (Object*)_nilObj) return nullptr;
+		return reinterpret_cast<Object**>(smi->asSmallInteger()->asNative());
+	}
+
+	void processVMStackBuffer_put_(HeapObject * processVMStack, Object **buffer) {
+		processVMStack->slot(Offsets::ProcessVMStackBuffer) =
+			(Object*)newInteger_(reinterpret_cast<intptr_t>(buffer));
+	}
+
+	uintptr_t processVMStackBufferSize_(HeapObject * processVMStack) {
+		return processVMStack->slot(Offsets::ProcessVMStackBufferSize)->asSmallInteger()->asNative();
+	}
+
+	void processVMStackBufferSize_put_(HeapObject * processVMStack, uintptr_t size) {
+		processVMStack->slot(Offsets::ProcessVMStackBufferSize) = (Object*)newInteger_(size);
+	}
+
+
 
 	void initializeKernelObjects()
 	{

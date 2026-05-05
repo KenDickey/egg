@@ -21,7 +21,9 @@ public:
 
     // Parse a complete Tonel-format .st file and return a ClassSpec.
     // The returned ClassSpec is heap-allocated; caller takes ownership.
-    ClassSpec* parseFile(const std::string& utf8Source);
+    // The optional filename is only used to enrich parse-error messages.
+    ClassSpec* parseFile(const std::string& utf8Source,
+                         const std::string& filename = "");
 
 private:
     // Stream-style helpers
@@ -51,9 +53,13 @@ private:
     Egg::string parseSTONString();
     std::vector<Egg::string> parseSTONArray();
 
+    // Throws std::runtime_error with file:line:col context.
+    [[noreturn]] void parseError_(const std::string& message) const;
+
     // State
     Egg::string _source;
     size_t      _pos = 0;
+    std::string _filename;
 };
 
 } // namespace Egg

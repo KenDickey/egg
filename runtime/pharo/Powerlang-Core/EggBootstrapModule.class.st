@@ -41,7 +41,7 @@ EggBootstrapModule class >> fromSpec [
 EggBootstrapModule class >> kernelSpec [
 
 	KernelSpec ifNil: [ 
-		KernelSpec := self readSpec: #Kernel at: '.'.
+		KernelSpec := self readSpec: #Kernel at: '../../modules'.
 		KernelSpec initializeConstants ].
 	^ KernelSpec
 ]
@@ -57,7 +57,8 @@ EggBootstrapModule class >> new [
 { #category : 'accessing' }
 EggBootstrapModule class >> readSpec: specName at: path [
 	| dir subdir |
-	dir := '../../modules' asFileReference.
+	
+	dir :=  '.' asFileReference.
 	subdir := path isString ifTrue: [ path ] ifFalse: [ path asPath pathString ].
 	subdir notEmpty ifTrue: [ dir := dir  / subdir].
 		
@@ -95,7 +96,7 @@ EggBootstrapModule class >> resetSpecs [
 { #category : 'accessing' }
 EggBootstrapModule class >> vmPrimitivesSpec [
 	^ VMPrimitivesSpec
-		ifNil: [ VMPrimitivesSpec := self readSpec: #VM at: 'Kernel' ]
+		ifNil: [ VMPrimitivesSpec := self readSpec: #VM at: '../../modules/Kernel' ]
 ]
 
 { #category : 'initialization' }

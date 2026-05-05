@@ -9,6 +9,9 @@
 #include "CodeSpecs.h"
 #include "Egg.h"
 
+#include <sstream>
+#include <stdexcept>
+
 namespace Egg {
 
 // ── Stream primitives ────────────────────────────────────────────────
@@ -38,9 +41,11 @@ void TonelReader::skipLine() {
 
 // ── Tonel structure ──────────────────────────────────────────────────
 
-ClassSpec* TonelReader::parseFile(const std::string& utf8Source) {
+ClassSpec* TonelReader::parseFile(const std::string& utf8Source,
+                                  const std::string& filename) {
     _source = Egg::string(utf8Source);
     _pos = 0;
+    _filename = filename;
 
     Egg::string comment = readComments();
     Egg::string type = readType();
@@ -60,7 +65,7 @@ ClassSpec* TonelReader::parseFile(const std::string& utf8Source) {
     } else if (type == "Class") {
         spec->supername(fields.count("superclass") ? fields["superclass"] : Egg::string(""));
     } else {
-        error_("Unknown Tonel type: " + type.toUtf8());
+        parseError_("Unknown Tonel type: " + type.toUtf8());
     }
 
     // #type field: #variable (pointer-indexed), #bytes (byte-indexed)
@@ -219,7 +224,7 @@ Egg::string TonelReader::nextBlock() {
     char32_t prev = 0;
     while (nested > 0) {
         if (atEnd())
-            error_("unterminated method body");
+            parseError_("unterminated method body");
         char32_t ch = next();
         if (prev == U'$') {
             // This character is a character literal value (e.g. $[ $] $' $" $$)
@@ -262,6 +267,20 @@ void TonelReader::skipString() {
 // Mirrors TonelReader >> skipComment
 void TonelReader::skipComment() {
     skipToMatch(U'"');
+}
+
+void TonelReader::parseError_(const std::string& message) const {
+    // Compute 1-based line/column from _pos in _source.
+    size_t line = 1, col = 1;
+    size_t limit = _pos < _source.length() ? _pos : _source.length();
+    for (size_t i = 0; i < limit; ++i) {
+        if (_source[i] == U'\n') { line++; col = 1; }
+        else { col++; }
+    }
+    std::stringstream ss;
+    ss << (_filename.empty() ? "<unknown>" : _filename)
+       << ":" << line << ":" << col << ": " << message;
+    throw std::runtime_error(ss.str());
 }
 
 // Mirrors TonelReader >> skipToMatch:

@@ -9,7 +9,8 @@ Class {
 	#instVars : [
 		'process',
 		'sp',
-		'bp'
+		'bp',
+		'env'
 	],
 	#category : #Kernel
 }
@@ -35,8 +36,18 @@ ProcessStack >> contextSwitchTo: next [
 { #category : #services }
 ProcessStack >> fillFrom: aContext [
 	#CRITICAL.
-	sp := (aContext copyAllTo: self).
-	self at: sp put: aContext lastEnvironment
+	sp := aContext copyAllTo: self.
+	env := aContext lastEnvironment
+]
+
+{ #category : #accessing }
+ProcessStack >> env [
+	^env
+]
+
+{ #category : #accessing }
+ProcessStack >> env: anObject [
+	env := anObject
 ]
 
 { #category : #accessing }

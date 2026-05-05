@@ -152,12 +152,16 @@ HostSystem >> prependSearchPath: aString type: aSymbol [
 
 { #category : #loading }
 HostSystem >> primitiveLoad: aSymbol [
+	| error |
 	<primitive: HostLoadModule>
+	^Error signal: error
 ]
 
 { #category : #loading }
 HostSystem >> primitiveLoadModuleFromPath: aString [
+	| error |
 	<primitive: HostLoadModuleFromPath>
+	^Error signal: error
 ]
 
 { #category : #services }
@@ -177,16 +181,15 @@ HostSystem >> setupDefaultSearchPaths [
 	platform-native PATH separator) supplies extra source directories. We also
 	walk a few levels up from the current directory so the runtime works both
 	from the project root and from a build subdirectory."
-	| env home cwd prefixes |
+	| env home prefixes |
 	env := self getEnv: 'EGG_MODULES_PATH'.
 	env ifNotNil: [
 		(env substringsSplitBy: self pathSeparator) do: [:p |
 			self addSearchPath: p type: #tonel.
 			self addSearchPath: p type: #ems]].
-	cwd := self currentDirectory.
 	prefixes := #('' '../' '../../' '../../../' '../../../../').
 	prefixes do: [:p | | base |
-		base := cwd , '/' , p , 'modules'.
+		base := p , 'modules'.
 		(self pathExists: base) ifTrue: [
 			self addSearchPath: base type: #tonel.
 			self addSearchPath: base type: #ems]].
@@ -200,7 +203,9 @@ HostSystem >> setupDefaultSearchPaths [
 
 { #category : #private }
 HostSystem >> suspended: aProcess because: anException [
-	<primitive: HostSuspendedBecause>
+	self
+		logError: 'Error: ' , anException description;
+		exit: 1
 ]
 
 { #category : #services }

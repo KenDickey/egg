@@ -23,6 +23,7 @@ class EvaluationContext {
     HeapObject *_regM, *_regE;
     uintptr_t  _regSP, _regBP, _regPC;
     Object *_regS, **_stack;
+    uintptr_t _stackSize;
     Runtime *_runtime;
 
     const int FRAME_TO_RECEIVER_DELTA = 1;
@@ -42,12 +43,20 @@ public:
     Object* self() { return _regS; }
     
     HeapObject* environment() { return _regE; }
+    void environment_(HeapObject* env) { _regE = env; }
     HeapObject* compiledCode() { return _regM; }
 
     uintptr_t stackPointer() { return _regSP; }
+    void stackPointer_(uintptr_t sp) { _regSP = sp; }
     uintptr_t framePointer() { return _regBP; }
     void framePointer_(uintptr_t bp) { _regBP = bp; }
     Object** stack() { return _stack; }
+    uintptr_t stackSize() { return _stackSize; }
+
+    void bindToBuffer_size_(Object **buffer, uintptr_t size) {
+        _stack = buffer;
+        _stackSize = size;
+    }
 
     HeapObject* classBinding();
 
