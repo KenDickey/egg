@@ -215,8 +215,10 @@ EggEvaluator >> initializePrimitives [
 		at: #PrimeFor put: self primitivePrimeFor;
 		at: #FlushFromCaches put: self primitiveFlushFromCaches;
 		at: #PrepareForExecution put: self primitivePrepareForExecution;
-		at: #ProcessVMStackInitialize
-		put: self primitiveProcessVMStackInitialize;
+		at: #ProcessVMStackInitializeWithActiveBuffer 
+		put: self primitiveProcessVMStackInitializeWithActiveBuffer;
+		at: #ProcessVMStackInitializeWithNewBuffer 
+		put: self primitiveProcessVMStackInitializeWithNewBuffer;
 		at: #ProcessVMStackAt put: self primitiveProcessVMStackAt;
 		at: #ProcessVMStackAtPut put: self primitiveProcessVMStackAtPut;
 		at: #ProcessVMStackBpAtPut put: self primitiveProcessVMStackBpAtPut;
@@ -616,6 +618,18 @@ EggEvaluator >> primitiveProcessVMStackInitialize [
 		         ifTrue: [ context ]
 		         ifFalse: [ self halt newEvaluationContext ].
 	  stacks at: context self put: new ]
+]
+
+{ #category : 'primitives' }
+EggEvaluator >> primitiveProcessVMStackInitializeWithActiveBuffer [
+
+	^ [ stacks at: context self put: context ]
+]
+
+{ #category : 'primitives' }
+EggEvaluator >> primitiveProcessVMStackInitializeWithNewBuffer [
+
+	^ [ stacks at: context self put: self halt newEvaluationContext ]
 ]
 
 { #category : 'primitives' }
