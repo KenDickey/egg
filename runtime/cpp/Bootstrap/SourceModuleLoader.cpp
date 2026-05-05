@@ -18,6 +18,8 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <sstream>
+#include <stdexcept>
 
 namespace Egg {
 
@@ -59,7 +61,7 @@ HeapObject* SourceModuleLoader::loadModuleFromSource(const std::string& modulePa
             std::string source((std::istreambuf_iterator<char>(file)),
                                std::istreambuf_iterator<char>());
 
-            ClassSpec* spec = reader.parseFile(source);
+            ClassSpec* spec = reader.parseFile(source, entry.path().string());
             _moduleSpec.addClass(spec);
             if (spec->isExtension()) {
                 extensionNames.push_back(spec->name());
@@ -302,17 +304,34 @@ Object* SourceModuleLoader::createNewClassFrom_(ClassSpec* spec, Object* module)
 void SourceModuleLoader::createMethodsOf_(Object* cls, ClassSpec* spec) {
     GCedRef clsRef(cls);
 
-    // Instance methods
-    for (const auto& method : spec->methods()) {
-        createNewMethod_(method.source(), clsRef.get(), method.category());
-    }
+    auto runMethod = [&](const MethodSpec& method, Object* receiver, const std::string& side) {
+        try {
+            createNewMethod_(method.source(), receiver, method.category());
+        } catch (const std::exception& e) {
+            rethrowWithContext_(e, spec->name(), side, method.source());
+        }
+    };
 
-    // Class methods
+    for (const auto& method : spec->methods())
+        runMethod(method, clsRef.get(), "");
+
     auto metaclass = _runtime->sendLocal_to_("class", clsRef.get());
     GCedRef metaRef(metaclass);
-    for (const auto& method : spec->metaclass()->methods()) {
-        createNewMethod_(method.source(), metaRef.get(), method.category());
-    }
+    for (const auto& method : spec->metaclass()->methods())
+        runMethod(method, metaRef.get(), " class");
+}
+
+[[noreturn]] void SourceModuleLoader::rethrowWithContext_(const std::exception& e,
+                                                          const Egg::string& className,
+                                                          const std::string& side,
+                                                          const Egg::string& source) {
+    size_t nl = source.find(U'\n');
+    Egg::string sig = nl == Egg::string::npos ? source : source.substr(0, nl);
+    std::stringstream ss;
+    ss << e.what()
+       << "\n  while compiling " << className.toUtf8() << side
+       << " >> " << sig.toUtf8();
+    throw std::runtime_error(ss.str());
 }
 
 void SourceModuleLoader::createNewMethod_(const Egg::string& source, Object* species, const Egg::string& category) {

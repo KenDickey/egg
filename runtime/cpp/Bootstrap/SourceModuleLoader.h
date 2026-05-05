@@ -35,6 +35,10 @@ private:
     Object* createNewClassFrom_(ClassSpec* spec, Object* module);
     void createMethodsOf_(Object* cls, ClassSpec* spec);
     void createNewMethod_(const Egg::string& source, Object* species, const Egg::string& category = Egg::string(""));
+    [[noreturn]] static void rethrowWithContext_(const std::exception& e,
+                                                const Egg::string& className,
+                                                const std::string& side,
+                                                const Egg::string& source);
     Object* createExtensionMethod_(const Egg::string& source, Object* species);
 
     // Literal transfer helpers

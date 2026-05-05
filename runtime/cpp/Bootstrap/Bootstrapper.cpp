@@ -88,7 +88,7 @@ void Bootstrapper::loadKernelSpecs() {
             if (className == "package") continue;
 
             std::string source = readSourceFile_(className);
-            ClassSpec* spec = reader.parseFile(source);
+            ClassSpec* spec = reader.parseFile(source, entry.path().string());
             _moduleSpec.addClass(spec);
         }
     }
@@ -107,7 +107,7 @@ void Bootstrapper::loadKernelSpecs() {
                 if (!file.is_open()) continue;
                 std::string source((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 
-                ClassSpec* extensionSpec = reader.parseFile(source);
+                ClassSpec* extensionSpec = reader.parseFile(source, entry.path().string());
                 ClassSpec* existingSpec = _moduleSpec.resolveClass(className);
                 if (!existingSpec) {
                     std::cerr << "  Warning: VM extension for unknown class " << className << std::endl;
