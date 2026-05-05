@@ -182,6 +182,7 @@ private:
     Object* boolObject(bool aBoolean);
 
 	Object* failPrimitive();
+	Object* failPrimitiveWith_(Object* errorObject);
 
 	Object* primitiveAt();
 	Object* primitiveAtPut();

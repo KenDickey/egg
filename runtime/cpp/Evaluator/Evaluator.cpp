@@ -520,6 +520,18 @@ Object* Evaluator::failPrimitive()
     return this->_regR;
 }
 
+Object* Evaluator::failPrimitiveWith_(Object* errorObject)
+{
+    // Same as failPrimitive, but additionally publishes `errorObject` to the
+    // Smalltalk fallback code by writing it into the method's first temp.
+    // The fallback method should declare a `| error |` temp to receive it.
+    // Temp indices are 1-based (matches compiler/linearizer convention).
+    auto method = this->_context->method();
+    if (this->_runtime->methodTempCount_(method) > 0)
+        this->_context->stackTemporaryAt_put_(1, errorObject);
+    return this->failPrimitive();
+}
+
 
 Object* Evaluator::primitiveAt() {
     auto receiver = this->_context->self();
