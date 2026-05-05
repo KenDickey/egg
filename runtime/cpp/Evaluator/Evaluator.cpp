@@ -899,6 +899,15 @@ Object* Evaluator::primitiveHostLog() {
     return this->_regR;
 }
 
+Object* Evaluator::primitiveHostExit() {
+    auto arg = this->_context->firstArgument();
+    int code = 0;
+    if (arg->isSmallInteger())
+        code = (int)arg->asSmallInteger()->asNative();
+    std::exit(code);
+    return (Object*)this->_runtime->_nilObj;
+}
+
 Object* Evaluator::primitiveHostReadFile() {
     auto filename = this->_context->firstArgument();
     std::ifstream file(filename->asHeapObject()->asLocalString(), std::ios::binary);

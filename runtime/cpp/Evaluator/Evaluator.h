@@ -228,6 +228,7 @@ private:
 	Object* primitiveHostLoadModule();
 	Object* primitiveHostLoadModuleFromPath();
 	Object* primitiveHostLog();
+	Object* primitiveHostExit();
 	Object* primitiveHostPathExists();
 	Object* primitiveHostPlatformName();
 	Object* primitiveHostReadFile();
