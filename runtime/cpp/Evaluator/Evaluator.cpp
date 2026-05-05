@@ -925,9 +925,13 @@ Object* Evaluator::primitiveHostLoadModule() {
     auto guard = this->_runtime->_heap->atGCUnsafepoint();
     auto name = this->_context->firstArgument()->asHeapObject()->asLocalString();
     std::cout << "loading " << name << "..." << std::endl;
-    auto module = (Object*)this->_runtime->loadModule_(this->_context->firstArgument()->asHeapObject());
-    std::cout << " done loading " << name << std::endl;
-    return module;
+    try {
+        auto module = (Object*)this->_runtime->loadModule_(this->_context->firstArgument()->asHeapObject());
+        std::cout << " done loading " << name << std::endl;
+        return module;
+    } catch (const std::exception& e) {
+        return this->failPrimitiveWith_((Object*)this->_runtime->newString_(e.what()));
+    }
 }
 
 Object* Evaluator::primitiveHostWriteFile() {
@@ -977,9 +981,13 @@ Object* Evaluator::primitiveHostLoadModuleFromPath() {
     auto guard = this->_runtime->_heap->atGCUnsafepoint();
     auto path = this->_context->firstArgument()->asHeapObject()->asLocalString();
     std::cout << "loading from " << path << "..." << std::endl;
-    auto module = (Object*)this->_runtime->loadModuleFromPath_(path);
-    std::cout << " done loading " << path << std::endl;
-    return module;
+    try {
+        auto module = (Object*)this->_runtime->loadModuleFromPath_(path);
+        std::cout << " done loading " << path << std::endl;
+        return module;
+    } catch (const std::exception& e) {
+        return this->failPrimitiveWith_((Object*)this->_runtime->newString_(e.what()));
+    }
 }
 
 Object* Evaluator::primitiveNew() {
