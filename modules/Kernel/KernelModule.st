@@ -255,7 +255,6 @@ KernelModule >> suspendOnUnhandledExceptions [
 KernelModule >> suspendBecause: anException [
 	| active process |
 	active := Processor activeProcess.
-	"active snapshot ifNil: [^self]."
 	process := Process sending: #suspended:because: to: host with: {active. anException}.
 	process takeControl
 ]
