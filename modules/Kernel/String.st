@@ -45,6 +45,11 @@ String class >> fromUTF8: aByteArray [
 ]
 
 { #category : #'instance creation' }
+String class >> new [
+	^self new: 0
+]
+
+{ #category : #'instance creation' }
 String class >> new: anInteger [
 	^self primitiveNewBytes: anInteger + 1
 ]
