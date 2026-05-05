@@ -194,15 +194,16 @@ void Evaluator::initializePrimitives()
     this->addPrimitive("HostLoadModuleFromPath", &Evaluator::primitiveHostLoadModuleFromPath);
 
 
-    //this->addPrimitive("PrepareForExecution", &Evaluator::primitivePrepareForExecution);
-    //this->addPrimitive("ProcessVMStackInitialize", &Evaluator::primitiveProcessVMStackInitialize);
+    this->addPrimitive("PrepareForExecution", &Evaluator::primitivePrepareForExecution);
+    this->addPrimitive("ProcessVMStackInitializeWithNewBuffer", &Evaluator::primitiveProcessVMStackInitializeWithNewBuffer);
+    this->addPrimitive("ProcessVMStackInitializeWithActiveBuffer", &Evaluator::primitiveProcessVMStackInitializeWithActiveBuffer);
     this->addPrimitive("ProcessVMStackAt", &Evaluator::primitiveProcessStackAt);
-    //this->addPrimitive("ProcessVMStackAtPut", &Evaluator::primitiveProcessVMStackAtPut);
-    //this->addPrimitive("ProcessVMStackBpAtPut", &Evaluator::primitiveProcessVMStackBpAtPut);
-    //this->addPrimitive("ProcessVMStackPcAtPut", &Evaluator::primitiveProcessVMStackPcAtPut);
+    this->addPrimitive("ProcessVMStackAtPut", &Evaluator::primitiveProcessVMStackAtPut);
+    this->addPrimitive("ProcessVMStackBpAtPut", &Evaluator::primitiveProcessVMStackBpAtPut);
+    this->addPrimitive("ProcessVMStackPcAtPut", &Evaluator::primitiveProcessVMStackPcAtPut);
     this->addPrimitive("ProcessVMStackBP", &Evaluator::primitiveProcessBP);
-    //this->addPrimitive("ProcessVMStackBufferSize", &Evaluator::primitiveProcessVMStackBufferSize);
-    //this->addPrimitive("ProcessVMStackContextSwitchTo", &Evaluator::primitiveProcessVMStackContextSwitchTo);
+    this->addPrimitive("ProcessVMStackBufferSize", &Evaluator::primitiveProcessVMStackBufferSize);
+    this->addPrimitive("ProcessVMStackContextSwitchTo", &Evaluator::primitiveProcessVMStackContextSwitchTo);
     _linearizer->primitives_(_primitives);
 }
 
@@ -1008,6 +1009,128 @@ Object* Evaluator::primitiveProcessBP()
 Object* Evaluator::primitiveProcessStackAt()
 {
     return _context->stackAt_(this->_context->firstArgument()->asSmallInteger()->asNative());
+}
+
+Object* Evaluator::primitiveProcessVMStackInitializeWithNewBuffer()
+{
+    // Allocate the off-heap buffer that backs a (suspended) process's stack and
+    // stash it (tagged as a SmallInteger so the GC won't try to follow it) into
+    // the receiver.
+    // TODO: this buffer leaks when the wrapping ProcessVMStack is GC'd.
+    // Wiring a real finalizer requires GC-sweep hooks (see GarbageCollector::
+    // rememberSpecial_ for the special-class machinery). For now the leak is
+    // bounded by the number of Process objects ever created (1 OS-page-sized
+    // buffer each) and reclaimed by the OS on exit.
+    auto pvm = this->_context->self()->asHeapObject();
+    uintptr_t size = this->_context->stackSize();
+    Object **buffer = new Object*[size];
+    for (uintptr_t i = 0; i < size; ++i) buffer[i] = (Object*)_runtime->_nilObj;
+    _runtime->processVMStackBuffer_put_(pvm, buffer);
+    _runtime->processVMStackBufferSize_put_(pvm, size);
+    return (Object*)pvm;
+}
+
+Object* Evaluator::primitiveProcessVMStackInitializeWithActiveBuffer()
+{
+    // Adopt the live C++ evaluator stack: the receiver becomes the wrapper
+    // around the buffer that the running native code is currently using.
+    // SP/BP/env are written by the suspending side (contextSwitchTo:) so we
+    // don't initialize them here. The GC distinguishes the active stack from
+    // suspended ones by comparing buffer pointers with the evaluator context.
+    auto pvm = this->_context->self()->asHeapObject();
+    auto ctx = this->_context;
+    _runtime->processVMStackBuffer_put_(pvm, ctx->stack());
+    _runtime->processVMStackBufferSize_put_(pvm, ctx->stackSize());
+    return (Object*)pvm;
+}
+
+Object* Evaluator::primitiveProcessVMStackBufferSize()
+{
+    auto receiver = this->_context->self()->asHeapObject();
+    return receiver->slot(Offsets::ProcessVMStackBufferSize);
+}
+
+Object* Evaluator::primitiveProcessVMStackAtPut()
+{
+    auto receiver = this->_context->self()->asHeapObject();
+    auto buffer = this->_runtime->processVMStackBuffer_(receiver);
+    if (!buffer) return failPrimitive();
+    auto index = this->_context->firstArgument()->asSmallInteger()->asNative();
+    auto value = this->_context->secondArgument();
+    auto size = this->_runtime->processVMStackBufferSize_(receiver);
+    if (index < 1 || (uintptr_t)index > size) return failPrimitive();
+    buffer[index - 1] = value;
+    return value;
+}
+
+Object* Evaluator::primitiveProcessVMStackBpAtPut()
+{
+    auto receiver = this->_context->self()->asHeapObject();
+    auto buffer = this->_runtime->processVMStackBuffer_(receiver);
+    if (!buffer) return failPrimitive();
+    auto index = this->_context->firstArgument()->asSmallInteger()->asNative();
+    auto bp    = this->_context->secondArgument()->asSmallInteger()->asNative();
+    auto size  = this->_runtime->processVMStackBufferSize_(receiver);
+    if (index < 1 || (uintptr_t)index > size) return failPrimitive();
+    buffer[index - 1] = (Object*)(uintptr_t)bp;
+    return this->_context->secondArgument();
+}
+
+Object* Evaluator::primitiveProcessVMStackPcAtPut()
+{
+    auto receiver = this->_context->self()->asHeapObject();
+    auto buffer = this->_runtime->processVMStackBuffer_(receiver);
+    if (!buffer) return failPrimitive();
+    auto index = this->_context->firstArgument()->asSmallInteger()->asNative();
+    auto pc    = this->_context->secondArgument()->asSmallInteger()->asNative();
+    // third argument is the code object; not stored at this slot in our model,
+    // but mirrors the Smalltalk signature `pcAt:put:of:`.
+    auto size  = this->_runtime->processVMStackBufferSize_(receiver);
+    if (index < 1 || (uintptr_t)index > size) return failPrimitive();
+    buffer[index - 1] = (Object*)(uintptr_t)pc;
+    return this->_context->secondArgument();
+}
+
+Object* Evaluator::primitiveProcessVMStackContextSwitchTo()
+{
+    auto outgoing = this->_context->self()->asHeapObject();      // current stack
+    auto incoming = this->_context->firstArgument()->asHeapObject(); // target stack
+
+    // Snapshot live registers into the outgoing PVMStack ivars.
+    this->_runtime->processStackSP_put_(outgoing, this->_context->stackPointer());
+    this->_runtime->processStackBP_put_(outgoing, this->_context->framePointer());
+    this->_runtime->processStackEnv_put_(outgoing, (Object*)this->_context->environment());
+
+    // Bind the evaluator buffer to the incoming stack's buffer.
+    auto buffer = this->_runtime->processVMStackBuffer_(incoming);
+    auto size   = this->_runtime->processVMStackBufferSize_(incoming);
+    this->_context->bindToBuffer_size_(buffer, size);
+
+    // Restore SP from the incoming PVMStack.
+    // Just popFrame to load M/E/S/PC/BP from the topmost frame.
+    auto sp = this->_runtime->processStackSP_(incoming);
+    this->_context->stackPointer_(sp + 1);
+    this->_context->framePointer_(this->_context->stackPointer());
+
+    // popFrame reads the method out of the buffer; ensure that method has
+    // its executable code prepared (the Smalltalk-level prepareForExecution
+    // primitive is a no-op so that may not yet have happened).
+    this->_context->popFrame();
+    auto method = this->_context->compiledCode();
+    if (this->_runtime->methodExecutableCode_(method) == this->_runtime->_nilObj)
+        this->prepareForExecution_(method);
+    auto code = this->_runtime->methodExecutableCode_(method);
+    _work = this->_runtime->executableCodeWork_(code);
+
+
+    return (Object*)this->_runtime->_trueObj;
+}
+
+Object* Evaluator::primitivePrepareForExecution()
+{
+    // CompiledMethod>>prepareForExecution. In this runtime methods are
+    // compiled lazily on first invoke, so this is a no-op.
+    return this->_context->self();
 }
 
 Object* Evaluator::primitivePrimeFor() {

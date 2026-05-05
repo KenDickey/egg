@@ -238,6 +238,14 @@ private:
 	Object* primitivePerformWithArguments();
 	Object* primitiveProcessBP();
 	Object* primitiveProcessStackAt();
+	Object* primitiveProcessVMStackInitializeWithNewBuffer();
+	Object* primitiveProcessVMStackInitializeWithActiveBuffer();
+	Object* primitiveProcessVMStackBufferSize();
+	Object* primitiveProcessVMStackAtPut();
+	Object* primitiveProcessVMStackBpAtPut();
+	Object* primitiveProcessVMStackPcAtPut();
+	Object* primitiveProcessVMStackContextSwitchTo();
+	Object* primitivePrepareForExecution();
 	Object* primitivePrimeFor();
 	Object* primitivePrimeFor_(auto anInteger);
 	Object* primitiveSMIBitAnd();

@@ -93,10 +93,13 @@ enum Offsets {
     ProcessNativeStack = 1,
     ProcessTopContext = 2,
 
-    // inst vars of ProcessVMStack (the VM's internal stack object for processes)
-    ProcessVMStackProcess = 0,
-    ProcessVMStackSP = 1,
-    ProcessVMStackBP = 2,
+    // inst vars of ProcessStack (and its VM-internal subclass ProcessVMStack)
+    ProcessStackProcess = 0,
+    ProcessStackSP = 1,
+    ProcessStackBP = 2,
+    ProcessStackEnv = 3,
+    ProcessVMStackBuffer = 4,
+    ProcessVMStackBufferSize = 5,
 
     FFI_uint8 = 0,
     FFI_sint8 = 1,
