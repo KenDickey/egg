@@ -185,6 +185,7 @@ void Evaluator::initializePrimitives()
     this->addPrimitive("HostPlatformName", &Evaluator::primitiveHostPlatformName);
     this->addPrimitive("HostCurrentMilliseconds", &Evaluator::primitiveHostCurrentMilliseconds);
     this->addPrimitive("HostLog", &Evaluator::primitiveHostLog);
+    this->addPrimitive("HostExit", &Evaluator::primitiveHostExit);
     this->addPrimitive("HostReadFile", &Evaluator::primitiveHostReadFile);
     this->addPrimitive("HostWriteFile", &Evaluator::primitiveHostWriteFile);
     this->addPrimitive("HostCreateDirectory", &Evaluator::primitiveHostCreateDirectory);
