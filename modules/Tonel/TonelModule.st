@@ -9,6 +9,6 @@ TonelModule >> imports [
 	^{
 		#STON -> #(#STONReader #STONWriter #STON).
 		#Compiler -> #(#SSmalltalkParser).
-		#Kernel -> #(#OrderedDictionary #ReadStream)
+		#Kernel -> #(#Module #OrderedDictionary #ReadStream)
 	}
 ]

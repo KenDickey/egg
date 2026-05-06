@@ -209,12 +209,12 @@ uintptr_t Runtime::hashFor_(Object *anObject)
  }
 
 Object* Runtime::sendLocal_to_withArgs_(const std::string &selector, Object *receiver, std::vector<Object*> &arguments) {
-    auto symbol = this->existingSymbolFrom_(selector);
+    auto symbol = (Object*)this->addSymbol_(selector);
     return this->_evaluator->send_to_with_(symbol, receiver, arguments);
 }
 
 Object* Runtime::sendLocal_to_with_(const std::string &selector, Object *receiver, Object* arg1) {
-    auto symbol = this->existingSymbolFrom_(selector);
+    auto symbol = (Object*)this->addSymbol_(selector);
     std::vector<Object*> args;
     args.push_back(arg1);
 
@@ -222,7 +222,7 @@ Object* Runtime::sendLocal_to_with_(const std::string &selector, Object *receive
 }
 
 Object* Runtime::sendLocal_to_with_with_(const std::string &selector, Object *receiver, Object *arg1, Object* arg2) {
-    auto symbol = this->existingSymbolFrom_(selector);
+    auto symbol = (Object*)this->addSymbol_(selector);
     std::vector<Object*> args;
     args.push_back(arg1);
     args.push_back(arg2);

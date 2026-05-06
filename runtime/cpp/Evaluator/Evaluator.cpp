@@ -69,6 +69,12 @@ void Evaluator::addPrimitive(const std::string &name, Evaluator::PrimitivePointe
 
 void Evaluator::addUndermessage(const std::string &name, UndermessagePointer primitive) {
     Object *symbol = _runtime->existingSymbolFrom_(name);
+    if (!symbol) {
+        // Symbol does not (yet) exist in the kernel symbol table; skip registration
+        // to avoid storing the undermessage under a nullptr key, which would later
+        // be matched by any send whose selector cannot be resolved.
+        return;
+    }
     _undermessages[symbol] = primitive;
 }
 
@@ -318,7 +324,7 @@ void Egg::Evaluator::messageNotUnderstood_(SAbstractMessage *message)
 	auto array = _runtime->newArray_(args);
 	_context->push_(message->selector());
 	_context->push_((Object*)array);
-    auto symbol = _runtime->existingSymbolFrom_("_doesNotUnderstand:with:");
+    auto symbol = (Object*)_runtime->addSymbol_("_doesNotUnderstand:with:");
     auto behavior = _runtime->behaviorOf_(_regR);
 	auto dnu = _runtime->lookup_startingAt_((Object*)symbol, behavior);
     if (!dnu)
