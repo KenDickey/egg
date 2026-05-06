@@ -251,7 +251,7 @@ ProtoObject >> class [
 
 { #category : #system }
 ProtoObject >> doesNotUnderstand: aMessage [
-	^MessageNotUnderstood message: aMessage
+	^MessageNotUnderstood message: aMessage receiver: self
 ]
 
 { #category : #errors }

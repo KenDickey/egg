@@ -318,7 +318,7 @@ void Egg::Evaluator::messageNotUnderstood_(SAbstractMessage *message)
 	auto array = _runtime->newArray_(args);
 	_context->push_(message->selector());
 	_context->push_((Object*)array);
-    auto symbol = _runtime->existingSymbolFrom_("_doesNotUnderstand:with:");
+    auto symbol = (Object*)_runtime->addSymbol_("_doesNotUnderstand:with:");
     auto behavior = _runtime->behaviorOf_(_regR);
 	auto dnu = _runtime->lookup_startingAt_((Object*)symbol, behavior);
     if (!dnu)
