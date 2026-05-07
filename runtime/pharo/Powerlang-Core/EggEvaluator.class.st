@@ -203,16 +203,22 @@ EggEvaluator >> initializePrimitives [
 		at: #BootstrapDictAt put: self primitiveBootstrapDictAt;
 		at: #BootstrapDictAtPut put: self primitiveBootstrapDictAtPut;
 		at: #HostSuspendedBecause put: self primitiveHostSuspendedBecause;
+		at: #HostCurrentDirectory put: self primitiveHostCurrentDirectory;
 		at: #HostCurrentMilliseconds put: self primitiveHostCurrentMilliseconds;
-		at: #HostLoadModule put: self primitiveHostLoadModule;
-		at: #HostReadFile put: self primitiveHostReadFile;
-		at: #HostPlatformName put: self primitiveHostPlatformName;
 		at: #HostFixOverrides put: self primitiveHostFixOverrides;
+		at: #HostGetEnv put: self primitiveHostGetEnv;
+		at: #HostLoadModule put: self primitiveHostLoadModule;
+		at: #HostLoadModuleFromPath put: self primitiveHostLoadModuleFromPath;
+		at: #HostPathExists put: self primitiveHostPathExists;
+		at: #HostPlatformName put: self primitiveHostPlatformName;
+		at: #HostReadFile put: self primitiveHostReadFile;
 		at: #PrimeFor put: self primitivePrimeFor;
 		at: #FlushFromCaches put: self primitiveFlushFromCaches;
 		at: #PrepareForExecution put: self primitivePrepareForExecution;
-		at: #ProcessVMStackInitialize
-		put: self primitiveProcessVMStackInitialize;
+		at: #ProcessVMStackInitializeWithActiveBuffer 
+		put: self primitiveProcessVMStackInitializeWithActiveBuffer;
+		at: #ProcessVMStackInitializeWithNewBuffer 
+		put: self primitiveProcessVMStackInitializeWithNewBuffer;
 		at: #ProcessVMStackAt put: self primitiveProcessVMStackAt;
 		at: #ProcessVMStackAtPut put: self primitiveProcessVMStackAtPut;
 		at: #ProcessVMStackBpAtPut put: self primitiveProcessVMStackBpAtPut;
@@ -458,6 +464,11 @@ EggEvaluator >> primitiveHash [
 ]
 
 { #category : 'primitives' }
+EggEvaluator >> primitiveHostCurrentDirectory [
+	^ [ runtime newString: FileLocator workingDirectory fullName ]
+]
+
+{ #category : 'primitives' }
 EggEvaluator >> primitiveHostCurrentMilliseconds [
 
 	^ [ runtime newInteger: runtime bootstrapper millisecondClockValue ]
@@ -469,8 +480,27 @@ EggEvaluator >> primitiveHostFixOverrides [
 ]
 
 { #category : 'primitives' }
+EggEvaluator >> primitiveHostGetEnv [
+	^ [ 
+		(OSEnvironment current at: context firstArgument asLocalString ifAbsent: nil)
+			ifNil: [nilObj]
+			ifNotNil: [:value | runtime newString: value]]
+]
+
+{ #category : 'primitives' }
 EggEvaluator >> primitiveHostLoadModule [
-	^ [ runtime loadModule: context firstArgument]
+	^ [ runtime loadModule: context firstArgument ]
+]
+
+{ #category : 'primitives' }
+EggEvaluator >> primitiveHostLoadModuleFromPath [
+	^ [ runtime loadModuleFromPath: context firstArgument ]
+]
+
+{ #category : 'primitives' }
+EggEvaluator >> primitiveHostPathExists [
+
+	^ [ runtime booleanFor: context firstArgument asLocalString asFileReference exists ]
 ]
 
 { #category : 'primitives' }
@@ -588,6 +618,18 @@ EggEvaluator >> primitiveProcessVMStackInitialize [
 		         ifTrue: [ context ]
 		         ifFalse: [ self halt newEvaluationContext ].
 	  stacks at: context self put: new ]
+]
+
+{ #category : 'primitives' }
+EggEvaluator >> primitiveProcessVMStackInitializeWithActiveBuffer [
+
+	^ [ stacks at: context self put: context ]
+]
+
+{ #category : 'primitives' }
+EggEvaluator >> primitiveProcessVMStackInitializeWithNewBuffer [
+
+	^ [ stacks at: context self put: self halt newEvaluationContext ]
 ]
 
 { #category : 'primitives' }

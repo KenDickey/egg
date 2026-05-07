@@ -22,7 +22,7 @@ WideSymbol class >> findInterned: aString [
 { #category : #accessing }
 WideSymbol class >> intern: aString [
 	| symbol canonical |
-	self isByteCompliant ifTrue: [^self reduced asSymbol].
+	aString isByteCompliant ifTrue: [^aString reduced asSymbol].
 	symbol := aString bytes changeClassTo: self.
 	canonical := SymbolTable lookup: symbol.
 	canonical == nil ifTrue: [^SymbolTable add: symbol].

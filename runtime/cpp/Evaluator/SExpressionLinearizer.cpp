@@ -443,7 +443,12 @@ void SExpressionLinearizer::visitBlock(SBlock *anSBlock) {
     auto prevInBlock = this->_inBlock;
     auto prevOperations = this->_operations;
     auto prevStackTop = _stackTop;
-    this->_stackTop = _runtime->blockTempCount_(anSBlock->compiledCode());
+    if (anSBlock->isInlined()) {
+        // Inlined blocks have no compiled code object; their temps are part of
+        // the enclosing script's frame, so we keep the current stack top.
+    } else {
+        this->_stackTop = _runtime->blockTempCount_(anSBlock->compiledCode());
+    }
     this->_inBlock = true;
     this->_operations = newPlatformCode();
     auto statements = anSBlock->statements();
@@ -551,23 +556,23 @@ void SExpressionLinearizer::visitMethod(SMethod *anSMethod) {
 
 void SExpressionLinearizer::visitMethod(SMethod *anSMethod, HeapObject *method) {
     this->reset();
-    auto primitive = anSMethod->pragma();
-    if (primitive != nullptr) {
+    auto pragmaObj = anSMethod->pragma();
+    if (pragmaObj != nullptr) {
         auto name = (_runtime->methodIsFFI_(method)) ? _runtime->existingSymbolFrom_("FFICall") : (Object*)anSMethod->primitive();
 
-        PrimitivePointer primitive;
         auto it = this->_primitives.find(name);
         if (it == this->_primitives.end()) {
-            error_("primitive " + name->printString() + " not found");
+            std::string symStr = name->asHeapObject()->printString();
+            fprintf(stderr, "Warning: primitive not found: %s, falling through to Smalltalk code\n", symStr.c_str());
         }
         else {
-            primitive = it->second;
+            PrimitivePointer prim = it->second;
+            this->primitive_(prim);
+            this->returnOp();
         }
-
-        this->primitive_(primitive);
-        this->returnOp();
     }
-    this->_stackTop = _runtime->methodTempCount_(anSMethod->compiledCode());
+    auto cc = anSMethod->compiledCode();
+    this->_stackTop = _runtime->methodTempCount_(cc);
     auto statements = anSMethod->statements();
     for (auto node : statements) {
         node->acceptVisitor_(this);

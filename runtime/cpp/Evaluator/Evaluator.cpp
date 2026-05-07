@@ -26,8 +26,12 @@
 #include <chrono>
 #include <cmath>
 #include <bit>
+#include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
+
+#include "Compat.h"
 
 using namespace Egg;
 
@@ -65,6 +69,12 @@ void Evaluator::addPrimitive(const std::string &name, Evaluator::PrimitivePointe
 
 void Evaluator::addUndermessage(const std::string &name, UndermessagePointer primitive) {
     Object *symbol = _runtime->existingSymbolFrom_(name);
+    if (!symbol) {
+        // Symbol does not (yet) exist in the kernel symbol table; skip registration
+        // to avoid storing the undermessage under a nullptr key, which would later
+        // be matched by any send whose selector cannot be resolved.
+        return;
+    }
     _undermessages[symbol] = primitive;
 }
 
@@ -106,6 +116,7 @@ void Evaluator::initializeUndermessages() {
     this->addUndermessage("_smiBitAnd:", &Evaluator::underprimitiveSMIBitAnd);
     this->addUndermessage("_smiBitOr:", &Evaluator::underprimitiveSMIBitOr);
     this->addUndermessage("_halt", &Evaluator::underprimitiveHalt);
+    this->addUndermessage("_error:", &Evaluator::underprimitiveError);
 }
 
 
@@ -172,6 +183,7 @@ void Evaluator::initializePrimitives()
     //this->addPrimitive("HostSuspendedBecause", &Evaluator::primitiveHostSuspendedBecause);
     this->addPrimitive("HostLoadModule", &Evaluator::primitiveHostLoadModule);
     //this->addPrimitive("HostFixOverrides", &Evaluator::primitiveHostFixOverrides);
+    this->addPrimitive("DictionaryNew", &Evaluator::primitiveDictionaryNew);
     this->addPrimitive("PrimeFor", &Evaluator::primitivePrimeFor);
     this->addPrimitive("FlushFromCaches", &Evaluator::primitiveFlushFromCaches);
     this->addPrimitive("FFICall", &Evaluator::primitiveFFICall);
@@ -179,18 +191,26 @@ void Evaluator::initializePrimitives()
     this->addPrimitive("HostPlatformName", &Evaluator::primitiveHostPlatformName);
     this->addPrimitive("HostCurrentMilliseconds", &Evaluator::primitiveHostCurrentMilliseconds);
     this->addPrimitive("HostLog", &Evaluator::primitiveHostLog);
+    this->addPrimitive("HostExit", &Evaluator::primitiveHostExit);
     this->addPrimitive("HostReadFile", &Evaluator::primitiveHostReadFile);
+    this->addPrimitive("HostWriteFile", &Evaluator::primitiveHostWriteFile);
+    this->addPrimitive("HostCreateDirectory", &Evaluator::primitiveHostCreateDirectory);
+    this->addPrimitive("HostPathExists", &Evaluator::primitiveHostPathExists);
+    this->addPrimitive("HostCurrentDirectory", &Evaluator::primitiveHostCurrentDirectory);
+    this->addPrimitive("HostGetEnv", &Evaluator::primitiveHostGetEnv);
+    this->addPrimitive("HostLoadModuleFromPath", &Evaluator::primitiveHostLoadModuleFromPath);
 
 
-    //this->addPrimitive("PrepareForExecution", &Evaluator::primitivePrepareForExecution);
-    //this->addPrimitive("ProcessVMStackInitialize", &Evaluator::primitiveProcessVMStackInitialize);
+    this->addPrimitive("PrepareForExecution", &Evaluator::primitivePrepareForExecution);
+    this->addPrimitive("ProcessVMStackInitializeWithNewBuffer", &Evaluator::primitiveProcessVMStackInitializeWithNewBuffer);
+    this->addPrimitive("ProcessVMStackInitializeWithActiveBuffer", &Evaluator::primitiveProcessVMStackInitializeWithActiveBuffer);
     this->addPrimitive("ProcessVMStackAt", &Evaluator::primitiveProcessStackAt);
-    //this->addPrimitive("ProcessVMStackAtPut", &Evaluator::primitiveProcessVMStackAtPut);
-    //this->addPrimitive("ProcessVMStackBpAtPut", &Evaluator::primitiveProcessVMStackBpAtPut);
-    //this->addPrimitive("ProcessVMStackPcAtPut", &Evaluator::primitiveProcessVMStackPcAtPut);
+    this->addPrimitive("ProcessVMStackAtPut", &Evaluator::primitiveProcessVMStackAtPut);
+    this->addPrimitive("ProcessVMStackBpAtPut", &Evaluator::primitiveProcessVMStackBpAtPut);
+    this->addPrimitive("ProcessVMStackPcAtPut", &Evaluator::primitiveProcessVMStackPcAtPut);
     this->addPrimitive("ProcessVMStackBP", &Evaluator::primitiveProcessBP);
-    //this->addPrimitive("ProcessVMStackBufferSize", &Evaluator::primitiveProcessVMStackBufferSize);
-    //this->addPrimitive("ProcessVMStackContextSwitchTo", &Evaluator::primitiveProcessVMStackContextSwitchTo);
+    this->addPrimitive("ProcessVMStackBufferSize", &Evaluator::primitiveProcessVMStackBufferSize);
+    this->addPrimitive("ProcessVMStackContextSwitchTo", &Evaluator::primitiveProcessVMStackContextSwitchTo);
     _linearizer->primitives_(_primitives);
 }
 
@@ -304,14 +324,14 @@ void Egg::Evaluator::messageNotUnderstood_(SAbstractMessage *message)
 	auto array = _runtime->newArray_(args);
 	_context->push_(message->selector());
 	_context->push_((Object*)array);
-    auto symbol = _runtime->addSymbol_("doesNotUnderstand:");
+    auto symbol = (Object*)_runtime->addSymbol_("_doesNotUnderstand:with:");
     auto behavior = _runtime->behaviorOf_(_regR);
 	auto dnu = _runtime->lookup_startingAt_((Object*)symbol, behavior);
     if (!dnu)
     {
         std::string errmsg = std::string("Message not understood!\n") +
      this->_regR->printString() + " does not understand " + message->selector()->printString() +
-     "\nmethod #doesNotUnderstand: not found on receiver";
+     "\nmethod #_doesNotUnderstand:with: not found on receiver";
         error_(errmsg);
 
     }
@@ -324,6 +344,7 @@ void Evaluator::doesNotKnow(const Object *symbol) { ASSERT(false); }
 void Evaluator::visitIdentifier(SIdentifier *identifier)
 {
     SBinding* binding = identifier->binding();
+    
     auto value = binding->valueWithin_(_context);
     if (!value)
         return this->doesNotKnow(binding->name());
@@ -357,8 +378,6 @@ void Evaluator::visitOpDispatchMessage(SOpDispatchMessage *anSOpDispatchMessage)
 {
     SAbstractMessage *message = anSOpDispatchMessage->message();
 
-    //std::cout << "dispatching " << message->selector()->asLocalString() << std::endl;
-    
     UndermessagePointer undermessage = message->cachedUndermessage();
     if (undermessage != nullptr) {
         return this->evaluateUndermessage_with_(message, undermessage);
@@ -456,7 +475,8 @@ void Evaluator::visitOpPushR(SOpPushR *anSOpPushR)
 void Evaluator::popFrameAndPrepare()
 {
 	_context->popFrame();
-	auto code = _runtime->methodExecutableCode_(_context->compiledCode());
+	auto method = _context->compiledCode();
+	auto code = _runtime->methodExecutableCode_(method);
 	_work = _runtime->executableCodeWork_(code);
 }
 
@@ -507,21 +527,43 @@ Object* Evaluator::failPrimitive()
     return this->_regR;
 }
 
+Object* Evaluator::failPrimitiveWith_(Object* errorObject)
+{
+    // Same as failPrimitive, but additionally publishes `errorObject` to the
+    // Smalltalk fallback code by writing it into the method's first temp.
+    // The fallback method should declare a `| error |` temp to receive it.
+    // Temp indices are 1-based (matches compiler/linearizer convention).
+    auto method = this->_context->method();
+    if (this->_runtime->methodTempCount_(method) > 0)
+        this->_context->stackTemporaryAt_put_(1, errorObject);
+    return this->failPrimitive();
+}
+
 
 Object* Evaluator::primitiveAt() {
     auto receiver = this->_context->self();
     auto index = this->_context->firstArgument();
 
     if (receiver->isSmallInteger())
-        error("primitiveAt: receiver must not be an integer");
+        return this->failPrimitive();
 
     if (!index->isSmallInteger())
-        error("primitiveAt: index must be an integer");
+        return this->failPrimitive();
     
     auto index_int = index->asSmallInteger()->asNative();
 
     auto heapreceiver = receiver->asHeapObject();
-    return heapreceiver->isBytes() ? newIntObject(heapreceiver->byteAt_(index_int)) : _runtime->indexedSlotAt_(heapreceiver, index_int);
+    if (heapreceiver->isBytes()) {
+        if (index_int < 1 || (unsigned)(index_int - 1) >= heapreceiver->size())
+            return this->failPrimitive();
+        return newIntObject(heapreceiver->byteAt_(index_int));
+    } else {
+        auto instSize = heapreceiver->isNamed() ? (int)_runtime->speciesInstanceSize_(_runtime->speciesOf_((Object*)heapreceiver)) : 0;
+        auto rawSlot = heapreceiver->isNamed() ? index_int + instSize : index_int;
+        if (rawSlot < 1 || (unsigned)(rawSlot - 1) >= heapreceiver->size())
+            return this->failPrimitive();
+        return _runtime->indexedSlotAt_(heapreceiver, index_int);
+    }
 }
 
 Object* Evaluator::primitiveAtPut() {
@@ -599,6 +641,23 @@ Object* Evaluator::primitiveBootstrapDictNew() {
 
 Object* Evaluator::primitiveClass() {
     return (Object*)this->_runtime->speciesOf_(this->_context->self());
+}
+
+Object* Evaluator::primitiveDictionaryNew() {
+    auto guard = this->_runtime->_heap->atGCSafepoint();
+    // self is Namespace class (or any HashedCollection subclass metaclass).
+    // Equivalent to: self basicNew initialize: (self sizeFor: 5)
+    // sizeFor: 5 => 7 max: (5*3//2) = 7. primeFor: 7 => 7.
+    auto species = this->_context->self()->asHeapObject();
+    auto table = this->_runtime->newSlots_size_(this->_runtime->_openHashTableClass, 7);
+    auto instance = this->_runtime->newSlotsOf_(species);
+    // tally := 0
+    instance->slot(0) = (Object*)this->_runtime->newInteger_(0);
+    // table := aHashTable
+    instance->slot(1) = (Object*)table;
+    // hashTable policy := instance (OpenHashTable named slot 0 = policy)
+    table->slot(0) = (Object*)instance;
+    return (Object*)instance;
 }
 
 Object* Evaluator::primitiveClosureArgumentCount() {
@@ -781,11 +840,12 @@ Object* Evaluator::primitiveFloatSqrt() {
 
 Object* Evaluator::primitiveFloatTimesTwoPower() {
     auto arg = this->_context->firstArgument();
-    if (_runtime->speciesOf_(arg) != _runtime->_floatClass)
+    if (!arg->isSmallInteger())
         return this->failPrimitive();
 
     auto self = this->_context->self();
-    return this->boolObject(*(double*)self == *(double*)arg);
+    int exp = (int)arg->asSmallInteger()->asNative();
+    return this->newDoubleObject(std::ldexp(*(double*)self, exp));
 }
 
 Object* Evaluator::primitiveFloatTruncated() {
@@ -845,6 +905,15 @@ Object* Evaluator::primitiveHostLog() {
     return this->_regR;
 }
 
+Object* Evaluator::primitiveHostExit() {
+    auto arg = this->_context->firstArgument();
+    int code = 0;
+    if (arg->isSmallInteger())
+        code = (int)arg->asSmallInteger()->asNative();
+    std::exit(code);
+    return (Object*)this->_runtime->_nilObj;
+}
+
 Object* Evaluator::primitiveHostReadFile() {
     auto filename = this->_context->firstArgument();
     std::ifstream file(filename->asHeapObject()->asLocalString(), std::ios::binary);
@@ -872,9 +941,69 @@ Object* Evaluator::primitiveHostLoadModule() {
     auto guard = this->_runtime->_heap->atGCUnsafepoint();
     auto name = this->_context->firstArgument()->asHeapObject()->asLocalString();
     std::cout << "loading " << name << "..." << std::endl;
-    auto module = (Object*)this->_runtime->loadModule_(this->_context->firstArgument()->asHeapObject());
-    std::cout << " done loading " << name << std::endl;
-    return module;
+    try {
+        auto module = (Object*)this->_runtime->loadModule_(this->_context->firstArgument()->asHeapObject());
+        std::cout << " done loading " << name << std::endl;
+        return module;
+    } catch (const std::exception& e) {
+        return this->failPrimitiveWith_((Object*)this->_runtime->newString_(e.what()));
+    }
+}
+
+Object* Evaluator::primitiveHostWriteFile() {
+    auto filename = this->_context->firstArgument()->asHeapObject()->asLocalString();
+    auto contents = this->_context->secondArgument()->asHeapObject()->asLocalString();
+    std::ofstream file(filename, std::ios::binary);
+    if (!file)
+        return this->failPrimitive();
+    file.write(contents.data(), contents.size());
+    return (Object*)this->_context->self();
+}
+
+Object* Evaluator::primitiveHostCreateDirectory() {
+    namespace fs = std::filesystem;
+    auto path = this->_context->firstArgument()->asHeapObject()->asLocalString();
+    std::error_code ec;
+    fs::create_directories(path, ec);
+    return (Object*)this->_runtime->booleanFor_(!ec);
+}
+
+Object* Evaluator::primitiveHostPathExists() {
+    namespace fs = std::filesystem;
+    auto path = this->_context->firstArgument()->asHeapObject()->asLocalString();
+    std::error_code ec;
+    bool exists = fs::exists(path, ec);
+    return (Object*)this->_runtime->booleanFor_(exists && !ec);
+}
+
+Object* Evaluator::primitiveHostCurrentDirectory() {
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    auto cwd = fs::current_path(ec);
+    if (ec)
+        return this->failPrimitive();
+    return (Object*)this->_runtime->newString_(cwd.string());
+}
+
+Object* Evaluator::primitiveHostGetEnv() {
+    auto name = this->_context->firstArgument()->asHeapObject()->asLocalString();
+    const char *value = std::getenv(name.c_str());
+    if (value == nullptr)
+        return (Object*)this->_runtime->_nilObj;
+    return (Object*)this->_runtime->newString_(std::string(value));
+}
+
+Object* Evaluator::primitiveHostLoadModuleFromPath() {
+    auto guard = this->_runtime->_heap->atGCUnsafepoint();
+    auto path = this->_context->firstArgument()->asHeapObject()->asLocalString();
+    std::cout << "loading from " << path << "..." << std::endl;
+    try {
+        auto module = (Object*)this->_runtime->loadModuleFromPath_(path);
+        std::cout << " done loading " << path << std::endl;
+        return module;
+    } catch (const std::exception& e) {
+        return this->failPrimitiveWith_((Object*)this->_runtime->newString_(e.what()));
+    }
 }
 
 Object* Evaluator::primitiveNew() {
@@ -883,14 +1012,20 @@ Object* Evaluator::primitiveNew() {
 }
 
 Object* Evaluator::primitiveNewBytes() {
+    auto arg = this->_context->firstArgument();
+    if (!arg->isSmallInteger())
+        return this->failPrimitive();
     auto guard = this->_runtime->_heap->atGCSafepoint();
-    auto size = this->_context->firstArgument()->asSmallInteger()->asNative();
+    auto size = arg->asSmallInteger()->asNative();
     return (Object*)this->_runtime->newBytes_size_(this->_context->self()->asHeapObject(), size);
 }
 
 Object* Evaluator::primitiveNewSized() {
+    auto arg = this->_context->firstArgument();
+    if (!arg->isSmallInteger())
+        return this->failPrimitive();
     auto guard = this->_runtime->_heap->atGCSafepoint();
-    auto size = this->_context->firstArgument()->asSmallInteger()->asNative();
+    auto size = arg->asSmallInteger()->asNative();
     return (Object*)this->_runtime->newOf_sized_(this->_context->self()->asHeapObject(), size);
 }
 
@@ -912,6 +1047,128 @@ Object* Evaluator::primitiveProcessStackAt()
     return _context->stackAt_(this->_context->firstArgument()->asSmallInteger()->asNative());
 }
 
+Object* Evaluator::primitiveProcessVMStackInitializeWithNewBuffer()
+{
+    // Allocate the off-heap buffer that backs a (suspended) process's stack and
+    // stash it (tagged as a SmallInteger so the GC won't try to follow it) into
+    // the receiver.
+    // TODO: this buffer leaks when the wrapping ProcessVMStack is GC'd.
+    // Wiring a real finalizer requires GC-sweep hooks (see GarbageCollector::
+    // rememberSpecial_ for the special-class machinery). For now the leak is
+    // bounded by the number of Process objects ever created (1 OS-page-sized
+    // buffer each) and reclaimed by the OS on exit.
+    auto pvm = this->_context->self()->asHeapObject();
+    uintptr_t size = this->_context->stackSize();
+    Object **buffer = new Object*[size];
+    for (uintptr_t i = 0; i < size; ++i) buffer[i] = (Object*)_runtime->_nilObj;
+    _runtime->processVMStackBuffer_put_(pvm, buffer);
+    _runtime->processVMStackBufferSize_put_(pvm, size);
+    return (Object*)pvm;
+}
+
+Object* Evaluator::primitiveProcessVMStackInitializeWithActiveBuffer()
+{
+    // Adopt the live C++ evaluator stack: the receiver becomes the wrapper
+    // around the buffer that the running native code is currently using.
+    // SP/BP/env are written by the suspending side (contextSwitchTo:) so we
+    // don't initialize them here. The GC distinguishes the active stack from
+    // suspended ones by comparing buffer pointers with the evaluator context.
+    auto pvm = this->_context->self()->asHeapObject();
+    auto ctx = this->_context;
+    _runtime->processVMStackBuffer_put_(pvm, ctx->stack());
+    _runtime->processVMStackBufferSize_put_(pvm, ctx->stackSize());
+    return (Object*)pvm;
+}
+
+Object* Evaluator::primitiveProcessVMStackBufferSize()
+{
+    auto receiver = this->_context->self()->asHeapObject();
+    return receiver->slot(Offsets::ProcessVMStackBufferSize);
+}
+
+Object* Evaluator::primitiveProcessVMStackAtPut()
+{
+    auto receiver = this->_context->self()->asHeapObject();
+    auto buffer = this->_runtime->processVMStackBuffer_(receiver);
+    if (!buffer) return failPrimitive();
+    auto index = this->_context->firstArgument()->asSmallInteger()->asNative();
+    auto value = this->_context->secondArgument();
+    auto size = this->_runtime->processVMStackBufferSize_(receiver);
+    if (index < 1 || (uintptr_t)index > size) return failPrimitive();
+    buffer[index - 1] = value;
+    return value;
+}
+
+Object* Evaluator::primitiveProcessVMStackBpAtPut()
+{
+    auto receiver = this->_context->self()->asHeapObject();
+    auto buffer = this->_runtime->processVMStackBuffer_(receiver);
+    if (!buffer) return failPrimitive();
+    auto index = this->_context->firstArgument()->asSmallInteger()->asNative();
+    auto bp    = this->_context->secondArgument()->asSmallInteger()->asNative();
+    auto size  = this->_runtime->processVMStackBufferSize_(receiver);
+    if (index < 1 || (uintptr_t)index > size) return failPrimitive();
+    buffer[index - 1] = (Object*)(uintptr_t)bp;
+    return this->_context->secondArgument();
+}
+
+Object* Evaluator::primitiveProcessVMStackPcAtPut()
+{
+    auto receiver = this->_context->self()->asHeapObject();
+    auto buffer = this->_runtime->processVMStackBuffer_(receiver);
+    if (!buffer) return failPrimitive();
+    auto index = this->_context->firstArgument()->asSmallInteger()->asNative();
+    auto pc    = this->_context->secondArgument()->asSmallInteger()->asNative();
+    // third argument is the code object; not stored at this slot in our model,
+    // but mirrors the Smalltalk signature `pcAt:put:of:`.
+    auto size  = this->_runtime->processVMStackBufferSize_(receiver);
+    if (index < 1 || (uintptr_t)index > size) return failPrimitive();
+    buffer[index - 1] = (Object*)(uintptr_t)pc;
+    return this->_context->secondArgument();
+}
+
+Object* Evaluator::primitiveProcessVMStackContextSwitchTo()
+{
+    auto outgoing = this->_context->self()->asHeapObject();      // current stack
+    auto incoming = this->_context->firstArgument()->asHeapObject(); // target stack
+
+    // Snapshot live registers into the outgoing PVMStack ivars.
+    this->_runtime->processStackSP_put_(outgoing, this->_context->stackPointer());
+    this->_runtime->processStackBP_put_(outgoing, this->_context->framePointer());
+    this->_runtime->processStackEnv_put_(outgoing, (Object*)this->_context->environment());
+
+    // Bind the evaluator buffer to the incoming stack's buffer.
+    auto buffer = this->_runtime->processVMStackBuffer_(incoming);
+    auto size   = this->_runtime->processVMStackBufferSize_(incoming);
+    this->_context->bindToBuffer_size_(buffer, size);
+
+    // Restore SP from the incoming PVMStack.
+    // Just popFrame to load M/E/S/PC/BP from the topmost frame.
+    auto sp = this->_runtime->processStackSP_(incoming);
+    this->_context->stackPointer_(sp + 1);
+    this->_context->framePointer_(this->_context->stackPointer());
+
+    // popFrame reads the method out of the buffer; ensure that method has
+    // its executable code prepared (the Smalltalk-level prepareForExecution
+    // primitive is a no-op so that may not yet have happened).
+    this->_context->popFrame();
+    auto method = this->_context->compiledCode();
+    if (this->_runtime->methodExecutableCode_(method) == this->_runtime->_nilObj)
+        this->prepareForExecution_(method);
+    auto code = this->_runtime->methodExecutableCode_(method);
+    _work = this->_runtime->executableCodeWork_(code);
+
+
+    return (Object*)this->_runtime->_trueObj;
+}
+
+Object* Evaluator::primitivePrepareForExecution()
+{
+    // CompiledMethod>>prepareForExecution. In this runtime methods are
+    // compiled lazily on first invoke, so this is a no-op.
+    return this->_context->self();
+}
+
 Object* Evaluator::primitivePrimeFor() {
     return this->primitivePrimeFor_(this->_context->firstArgument()->asSmallInteger()->asNative());
 }
@@ -928,22 +1185,34 @@ Object* Evaluator::primitivePrimeFor_(auto anInteger) {
 }
 
 Object* Evaluator::primitiveSMIBitAnd() {
-    return newIntObject((this->_context->self()->asSmallInteger()->asNative() & this->_context->firstArgument()->asSmallInteger()->asNative()));
+    auto arg = this->_context->firstArgument();
+    if (!arg->isSmallInteger()) return failPrimitive();
+    return newIntObject((this->_context->self()->asSmallInteger()->asNative() & arg->asSmallInteger()->asNative()));
 }
 
 Object* Evaluator::primitiveSMIBitOr() {
-    return newIntObject((this->_context->self()->asSmallInteger()->asNative() | this->_context->firstArgument()->asSmallInteger()->asNative()));
+    auto arg = this->_context->firstArgument();
+    if (!arg->isSmallInteger()) return failPrimitive();
+    return newIntObject((this->_context->self()->asSmallInteger()->asNative() | arg->asSmallInteger()->asNative()));
 }
 
 Object* Evaluator::primitiveSMIBitShift() {
     auto self = this->_context->self()->asSmallInteger()->asNative();
     auto firstArg = this->_context->firstArgument()->asSmallInteger()->asNative();
-    auto shifted = firstArg > 0 ? self << firstArg : self >> -firstArg;
-    return newIntObject(shifted);
+    if (firstArg > 0) {
+        if (firstArg >= 63 || (self != 0 && (self > (SmallInteger::SMALLINT_MAX >> firstArg) || self < (SmallInteger::SMALLINT_MIN >> firstArg))))
+            return failPrimitive();
+        return newIntObject(self << firstArg);
+    }
+    auto rshift = -firstArg;
+    if (rshift >= 63) return newIntObject(self < 0 ? -1 : 0);
+    return newIntObject(self >> rshift);
 }
 
 Object* Evaluator::primitiveSMIBitXor() {
-    return newIntObject(this->_context->self()->asSmallInteger()->asNative() ^ (this->_context->firstArgument()->asSmallInteger()->asNative()));
+    auto arg = this->_context->firstArgument();
+    if (!arg->isSmallInteger()) return failPrimitive();
+    return newIntObject(this->_context->self()->asSmallInteger()->asNative() ^ arg->asSmallInteger()->asNative());
 }
 
 Object* Evaluator::primitiveSMIEqual() {
@@ -975,15 +1244,33 @@ Object* Evaluator::primitiveSMIHighBit() {
 }
 
 Object* Evaluator::primitiveSMIIntDiv() {
-    return newIntObject(this->_context->self()->asSmallInteger()->asNative() / (this->_context->firstArgument()->asSmallInteger()->asNative()));
+    // Smalltalk // is floored division (toward negative infinity)
+    auto a = this->_context->self()->asSmallInteger()->asNative();
+    auto b = this->_context->firstArgument()->asSmallInteger()->asNative();
+    auto q = a / b;
+    // Adjust: if remainder is nonzero and signs differ, subtract 1
+    if ((a % b != 0) && ((a ^ b) < 0))
+        q -= 1;
+    return newIntObject(q);
 }
 
 Object* Evaluator::primitiveSMIIntQuot() {
-    return newIntObject(this->_context->self()->asSmallInteger()->asNative() % (this->_context->firstArgument()->asSmallInteger()->asNative()));
+    // Smalltalk \\ is floored remainder (modulo), same sign as divisor
+    auto a = this->_context->self()->asSmallInteger()->asNative();
+    auto b = this->_context->firstArgument()->asSmallInteger()->asNative();
+    auto r = a % b;
+    // Adjust: if remainder is nonzero and signs differ, add divisor
+    if (r != 0 && ((a ^ b) < 0))
+        r += b;
+    return newIntObject(r);
 }
 
 Object* Evaluator::primitiveSMIMinus() {
-    return newIntObject((this->_context->self()->asSmallInteger()->asNative() - this->_context->firstArgument()->asSmallInteger()->asNative()));
+    auto arg = this->_context->firstArgument();
+    if (!arg->isSmallInteger()) return this->failPrimitive();
+    auto result = this->_context->self()->asSmallInteger()->asNative() - arg->asSmallInteger()->asNative();
+    if (result < SmallInteger::SMALLINT_MIN || result > SmallInteger::SMALLINT_MAX) return this->failPrimitive();
+    return newIntObject(result);
 }
 
 Object* Evaluator::primitiveSMINotEqual() {
@@ -995,9 +1282,10 @@ Object* Evaluator::primitiveSMINotEqual() {
 
 Object* Evaluator::primitiveSMIPlus() {
     auto arg = this->_context->firstArgument();
-    return arg->isSmallInteger() ?
-        newIntObject((this->_context->self()->asSmallInteger()->asNative() + this->_context->firstArgument()->asSmallInteger()->asNative())) :
-        this->failPrimitive();
+    if (!arg->isSmallInteger()) return this->failPrimitive();
+    auto result = this->_context->self()->asSmallInteger()->asNative() + arg->asSmallInteger()->asNative();
+    if (result < SmallInteger::SMALLINT_MIN || result > SmallInteger::SMALLINT_MAX) return this->failPrimitive();
+    return newIntObject(result);
 }
 
 Object* Evaluator::primitiveSMISize() {
@@ -1010,9 +1298,13 @@ Object* Evaluator::primitiveSMISize() {
 
 Object* Evaluator::primitiveSMITimes() {
     auto arg = this->_context->firstArgument();
-    return arg->isSmallInteger() ?
-        newIntObject((this->_context->self()->asSmallInteger()->asNative() * arg->asSmallInteger()->asNative())) :
-        this->failPrimitive();
+    if (!arg->isSmallInteger()) return this->failPrimitive();
+    intptr_t a = this->_context->self()->asSmallInteger()->asNative();
+    intptr_t b = arg->asSmallInteger()->asNative();
+    intptr_t result;
+    if (mul_overflow_iptr(a, b, &result) || result < SmallInteger::SMALLINT_MIN || result > SmallInteger::SMALLINT_MAX)
+        return this->failPrimitive();
+    return newIntObject(result);
 }
 
 Object* Evaluator::primitiveSetBehavior() {
@@ -1022,7 +1314,9 @@ Object* Evaluator::primitiveSetBehavior() {
 }
 
 Object* Evaluator::primitiveSize() {
-    return newIntObject(this->_runtime->arrayedSizeOf_(this->_context->self()));
+    auto self = this->_context->self();
+    auto result = this->_runtime->arrayedSizeOf_(self);
+    return newIntObject(result);
 }
 
 Object* Evaluator::primitiveStringReplaceFromToWithStartingAt() {
@@ -1045,13 +1339,17 @@ Object* Evaluator::primitiveStringReplaceFromToWithStartingAt() {
     auto toint = to->asSmallInteger()->asNative();
     auto startingint = starting->asSmallInteger()->asNative();
 
-    if (toint > receiver->size())
+    // Empty replacement (from > to) is a no-op.
+    if (fromint > toint)
+        return (Object*)receiver;
+
+    if (fromint < 1 || toint > (intptr_t)receiver->size())
         return this->failPrimitive();
 
-    auto len = to - from + 1;
+    auto len = toint - fromint + 1;
     auto last = startingint + len - 1;
     auto hsource = source->asHeapObject();
-    if (last > hsource->size())
+    if (startingint < 1 || last > (intptr_t)hsource->size())
         return this->failPrimitive();
 
     receiver->replaceBytesFrom_to_with_startingAt_(
@@ -1253,7 +1551,11 @@ Object* Evaluator::underprimitiveBasicHashPut(Object *receiver, std::vector<Obje
 }
 
 Object* Evaluator::underprimitiveBitShiftLeft(Object *receiver, std::vector<Object*> &args) {
-    auto result = receiver->asSmallInteger()->asNative() << args[0]->asSmallInteger()->asNative();
+    auto value = receiver->asSmallInteger()->asNative();
+    auto shift = args[0]->asSmallInteger()->asNative();
+    if (shift >= 63 || (value != 0 && shift > 0 && (value > (SmallInteger::SMALLINT_MAX >> shift) || value < (SmallInteger::SMALLINT_MIN >> shift))))
+        return (Object*)_nilObj;
+    auto result = value << shift;
     return newIntObject(result);
 }
 
@@ -1269,6 +1571,12 @@ Object* Evaluator::underprimitiveByteAtPut(Object *receiver, std::vector<Object*
 
 Object* Evaluator::underprimitiveHalt(Object *receiver, std::vector<Object*> &args) {
     this->_halt();
+    return receiver;
+}
+
+Object* Evaluator::underprimitiveError(Object *receiver, std::vector<Object*> &args) {
+    std::string msg = args[0]->asHeapObject()->printString();
+    error_(msg);
     return receiver;
 }
 
@@ -1320,11 +1628,18 @@ Object* Evaluator::underprimitiveSMIBitOr(Object *receiver, std::vector<Object*>
 }
 
 Object* Evaluator::underprimitiveSMIBitShiftLeft(Object *receiver, std::vector<Object*> &args) {
-    return newIntObject((receiver->asSmallInteger()->asNative() << args[0]->asSmallInteger()->asNative()));
+    auto value = receiver->asSmallInteger()->asNative();
+    auto shift = args[0]->asSmallInteger()->asNative();
+    if (shift >= 63 || (value != 0 && shift > 0 && (value > (SmallInteger::SMALLINT_MAX >> shift) || value < (SmallInteger::SMALLINT_MIN >> shift))))
+        return (Object*)_nilObj;
+    return newIntObject(value << shift);
 }
 
 Object* Evaluator::underprimitiveSMIBitShiftRight(Object *receiver, std::vector<Object*> &args) {
-    return newIntObject((receiver->asSmallInteger()->asNative() >> args[0]->asSmallInteger()->asNative()));
+    auto value = receiver->asSmallInteger()->asNative();
+    auto shift = args[0]->asSmallInteger()->asNative();
+    if (shift >= 63) return newIntObject(value < 0 ? -1 : 0);
+    return newIntObject(value >> shift);
 }
 
 Object* Evaluator::underprimitiveSMIEquals(Object *receiver, std::vector<Object*> &args) {
@@ -1348,11 +1663,17 @@ Object* Evaluator::underprimitiveSMILowerThan(Object *receiver, std::vector<Obje
 }
 
 Object* Evaluator::underprimitiveSMIMinus(Object *receiver, std::vector<Object*> &args) {
-    return newIntObject((receiver->asSmallInteger()->asNative() - args[0]->asSmallInteger()->asNative()));
+    auto result = receiver->asSmallInteger()->asNative() - args[0]->asSmallInteger()->asNative();
+    if (result < SmallInteger::SMALLINT_MIN || result > SmallInteger::SMALLINT_MAX)
+        return (Object*)_nilObj;
+    return newIntObject(result);
 }
 
 Object* Evaluator::underprimitiveSMIPlus(Object *receiver, std::vector<Object*> &args) {
-    return newIntObject((receiver->asSmallInteger()->asNative() + args[0]->asSmallInteger()->asNative()));
+    auto result = receiver->asSmallInteger()->asNative() + args[0]->asSmallInteger()->asNative();
+    if (result < SmallInteger::SMALLINT_MIN || result > SmallInteger::SMALLINT_MAX)
+        return (Object*)_nilObj;
+    return newIntObject(result);
 }
 
 Object* Evaluator::underprimitiveSMIQuotientTowardZero(Object *receiver, std::vector<Object*> &args) {
@@ -1364,7 +1685,12 @@ Object* Evaluator::underprimitiveSMIRemainderTowardZero(Object *receiver, std::v
 }
 
 Object* Evaluator::underprimitiveSMITimes(Object *receiver, std::vector<Object*> &args) {
-    return newIntObject((receiver->asSmallInteger()->asNative() * args[0]->asSmallInteger()->asNative()));
+    intptr_t a = receiver->asSmallInteger()->asNative();
+    intptr_t b = args[0]->asSmallInteger()->asNative();
+    intptr_t result;
+    if (mul_overflow_iptr(a, b, &result) || result < SmallInteger::SMALLINT_MIN || result > SmallInteger::SMALLINT_MAX)
+        return (Object*)_nilObj;
+    return newIntObject(result);
 }
 
 Object* Evaluator::underprimitiveSmallIntegerByteAt(Object *receiver, std::vector<Object*> &args) {

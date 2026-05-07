@@ -24,28 +24,50 @@ Hello, world!
 
 ## Building the VM
 
-To compile the VM, be sure to install dependencies listed in next section and then just run from cli:
+Dependencies (Ubuntu): `sudo apt install g++ cmake conan`. On macOS use Homebrew.
+[Conan](https://conan.io) is a C++ package manager that fetches the few required
+C++ dependencies (libffi, Catch2). We try to keep deps as minimal as possible.
+
+The simplest path is the top-level `Makefile`, which picks the right build dir
+for your platform (`build/<OS>-<arch>-<BuildType>`):
 
 ```
 cd runtime/cpp
-conan install . --output-folder=build --build=missing -s compiler.cppstd=20 -s build_type=Debug
-cmake -B build -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH=build
-cmake --build build
+make                       # Debug build (default)
+make BUILD_TYPE=Release    # Release build
 ```
 
-This will build you an executable, you still need to run modules. 
-
-### Dependencies
-
-We aim for minimality everywhere, however you'll need some tools to be
-able to compile egg. In ubuntu, this should be all:
+Or invoke conan + cmake by hand:
 
 ```
-sudo apt install g++ cmake conan
+cd runtime/cpp
+BUILD_DIR=build/$(uname -s)-$(uname -m)-Debug.   # i.e. build/Darwin-arm64-Debug
+conan install . --output-folder=$BUILD_DIR --build=missing -s build_type=Debug
+cmake -B $BUILD_DIR -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH=$BUILD_DIR
+cmake --build $BUILD_DIR -j
 ```
 
-That should be all for compiling the VM. Conan is a C++ package manager that
-knows how to fetch the few required C++ dependencies such as libffi.
+The resulting executable is `$BUILD_DIR/egg`.
+
+## Running tests
+
+The C++ tree carries two CTest suites:
+
+- `compiler_tests` — scanner & parser unit tests (`runtime/cpp/Compiler/tests`).
+- `bootstrapper_parser_tests` — Tonel parsing and bootstrap integration
+  (`runtime/cpp/Bootstrap/tests`).
+
+After building, run them through CTest from the build directory:
+
+```
+cd runtime/cpp/build/$(uname -s)-$(uname -m)-Debug
+ctest --output-on-failure                       # everything
+ctest -R CompilerTests --output-on-failure      # one suite
+ctest -R BootstrapperParserTests
+```
+
+The individual binaries also accept Catch2 tag filters, e.g.
+`./Compiler/tests/compiler_tests "[scanner]"`.
 
 ## Building module snapshots
 

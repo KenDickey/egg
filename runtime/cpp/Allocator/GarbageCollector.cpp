@@ -172,9 +172,8 @@ void GarbageCollector::scanNativeStackFrame_sized_(uintptr_t *framePointer, uint
 }
 
 void GarbageCollector::scanStackFrameObjects_sized_(uintptr_t *framePointer, uintptr_t size) {
-	//for (uintptr_t i = 0; i < size; i++)
-	//	printf("adding %s to queue\n", ((Object*)framePointer[i])->printString().c_str());
-	this->scan_from_to_((HeapObject*)framePointer, 1, size);
+	for (uintptr_t i = 0; i < size; i++)
+		this->scanRoot_((Object**)&framePointer[i]);
 }
 
 void GarbageCollector::scanSpecialSlots_(HeapObject *special)
@@ -193,33 +192,26 @@ void GarbageCollector::nativeFramesStartingAt_bp_do_(uintptr_t **stack, uintptr_
 	}
 }
 
-void GarbageCollector::scanFirstStackChunk_(HeapObject *aProcessVMStack) {
-	/**
-	 * Scanning needs to fetch a chain of stack (frame) pointers. The head
-	 * of the chain is either of two cases:
-	 * - The active process.
-	 *      In that case, the top of the stack is a common frame (probably a call
-	 *      to a primitive). No special action needs to be done.
-	 * - A sleeping (native) process.
-	 *      In that case, the top of the stack is that process' env, followed
-	 *      by a retaddr. The GC has to scan that addr and then continue normally.
-	 *      (TODO: make env an instvar of the ProcessVMStack)
-	 */
-	//if (aProcessVMStack != runtime->_activeProcessStack)
-	//	this->scanTopSlot_(aProcessVMStack);
-
-	auto firstSP = _runtime->processVMStackSP_(aProcessVMStack) + 2;
-	auto firstBP = _runtime->processVMStackBP_(aProcessVMStack);
-	auto stack = (uintptr_t**)nullptr; //_runtime->processVMStackContext_(aProcessVMStack)->stack();
-	this->nativeFramesStartingAt_bp_do_(stack, firstSP, firstBP,
+void GarbageCollector::scanStack_sp_bp_(uintptr_t **stack, uintptr_t sp, uintptr_t bp) {
+	this->nativeFramesStartingAt_bp_do_(stack, sp, bp,
 		[this](uintptr_t *frame, uintptr_t size) {
 			this->scanNativeStackFrame_sized_(frame, size);
 		});
 }
 
+void GarbageCollector::scanSuspendedProcessStack_(HeapObject *aProcessVMStack) {
+	// A suspended process' topmost frame was laid out by ProcessStack>>fillFrom:.
+	// `sp` ivar is the slot just below the saved-bp slot of that topmost frame
+	// Start the frame walk at sp+1 (saved-bp slot) up to bp.
+	auto firstSP = _runtime->processStackSP_(aProcessVMStack) + 1;
+	auto firstBP = _runtime->processStackBP_(aProcessVMStack);
+	auto stack = (uintptr_t**)_runtime->processVMStackBuffer_(aProcessVMStack);
+	this->scanStack_sp_bp_(stack, firstSP, firstBP);
+}
+
 void GarbageCollector::scanPointer_(Object** pointer)
 {
-	this->scan_from_to_((HeapObject*)pointer, 1, 1);
+	this->scanRoot_(pointer);
 }
 
 /* only for use until we have context switches */
@@ -231,27 +223,24 @@ void GarbageCollector::scanCurrentContext() {
 	this->scanPointer_((Object**)&context->_regE);
 	this->scanPointer_((Object**)&context->_regM);
 
-
-	auto firstSP = context->stackPointer();
-	auto firstBP = context->framePointer();
-	auto stack = (uintptr_t**)context->stack();
-	this->nativeFramesStartingAt_bp_do_(stack, firstSP, firstBP,
-		[this](uintptr_t *frame, uintptr_t size) {
-			this->scanNativeStackFrame_sized_(frame, size);
-		});
+	this->scanStack_sp_bp_(
+		(uintptr_t**)context->stack(),
+		context->stackPointer(),
+		context->framePointer());
 }
 
 void GarbageCollector::scanStack_(HeapObject *aProcessVMStack)
 {
-	//auto context = _runtime->processVMStackContext_(aProcessVMStack);
-
-	// skip this stack if it corresponds to active process, which has already been scanned
-	//if (context == _runtime->_evaluator->context())
+	// Skip this stack if it corresponds to the active process: its buffer is
+	// the one bound to the live evaluator context, which scanCurrentContext
+	// has already walked using the live SP/BP/regs.
+	auto buffer = _runtime->processVMStackBuffer_(aProcessVMStack);
+	if (buffer == _runtime->_evaluator->context()->stack())
 		return;
 
-	auto process = _runtime->processVMStackProcess_(aProcessVMStack);
+	auto process = _runtime->processStackProcess_(aProcessVMStack);
 	if (_runtime->processStackIsValid_(process))
-		this->scanFirstStackChunk_(aProcessVMStack);
+		this->scanSuspendedProcessStack_(aProcessVMStack);
 
 	/* unimplemented GC in callbacks
     this->stackFramesBeneathCallbackIn_Do_(aProcessVMStack,

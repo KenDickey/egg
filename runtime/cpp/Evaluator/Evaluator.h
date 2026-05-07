@@ -182,6 +182,7 @@ private:
     Object* boolObject(bool aBoolean);
 
 	Object* failPrimitive();
+	Object* failPrimitiveWith_(Object* errorObject);
 
 	Object* primitiveAt();
 	Object* primitiveAtPut();
@@ -192,6 +193,7 @@ private:
 	Object* primitiveBootstrapDictKeys();
 	Object* primitiveBootstrapDictNew();
 	Object* primitiveClass();
+	Object* primitiveDictionaryNew();
 	Object* primitiveClosureArgumentCount();
 	Object* primitiveClosureAsCallback();
 	Object* primitiveClosureValue();
@@ -220,10 +222,17 @@ private:
 	Object* primitiveHostCurrentMilliseconds();
 	Object* primitiveHostFixOverrides();
 	Object* primitiveHostInitializeFFI();
+	Object* primitiveHostCreateDirectory();
+	Object* primitiveHostCurrentDirectory();
+	Object* primitiveHostGetEnv();
 	Object* primitiveHostLoadModule();
+	Object* primitiveHostLoadModuleFromPath();
 	Object* primitiveHostLog();
+	Object* primitiveHostExit();
+	Object* primitiveHostPathExists();
 	Object* primitiveHostPlatformName();
 	Object* primitiveHostReadFile();
+	Object* primitiveHostWriteFile();
 	Object* primitiveNew();
 	Object* primitiveNewBytes();
 	Object* primitiveNewObjectHeap();
@@ -231,6 +240,14 @@ private:
 	Object* primitivePerformWithArguments();
 	Object* primitiveProcessBP();
 	Object* primitiveProcessStackAt();
+	Object* primitiveProcessVMStackInitializeWithNewBuffer();
+	Object* primitiveProcessVMStackInitializeWithActiveBuffer();
+	Object* primitiveProcessVMStackBufferSize();
+	Object* primitiveProcessVMStackAtPut();
+	Object* primitiveProcessVMStackBpAtPut();
+	Object* primitiveProcessVMStackPcAtPut();
+	Object* primitiveProcessVMStackContextSwitchTo();
+	Object* primitivePrepareForExecution();
 	Object* primitivePrimeFor();
 	Object* primitivePrimeFor_(auto anInteger);
 	Object* primitiveSMIBitAnd();
@@ -270,6 +287,7 @@ private:
 	Object* underprimitiveByteAt(Object *receiver, std::vector<Object*> &args);
 	Object* underprimitiveByteAtPut(Object *receiver, std::vector<Object*> &args);
 	Object* underprimitiveHalt(Object *receiver, std::vector<Object*> &args);
+	Object* underprimitiveError(Object *receiver, std::vector<Object*> &args);
 	Object* underprimitiveIdentityEquals(Object *receiver, std::vector<Object*> &args);
 	Object* underprimitiveIsLarge(Object *receiver, std::vector<Object*> &args);
 	Object* underprimitiveIsSmallInteger(Object *receiver, std::vector<Object*> &args);

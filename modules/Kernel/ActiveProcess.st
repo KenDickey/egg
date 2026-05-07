@@ -19,6 +19,11 @@ ActiveProcess >> beInactive [
 	self changeClassTo: SuspendedProcess
 ]
 
+{ #category : #testing }
+ActiveProcess >> isActive [
+	^true
+]
+
 { #category : #converting }
 ActiveProcess >> canReturnTo: homeFrame [
 

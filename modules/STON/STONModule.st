@@ -18,3 +18,9 @@ STONModule >> imports [
 		#String. #Symbol. #Time. #Timestamp. #UndefinedObject. #IdentityDictionary. #MessageNotUnderstood}.
 	}
 ] 
+
+{ #category : #loading }
+STONModule >> justLoaded [
+	super justLoaded.
+	STONWriter initialize
+]

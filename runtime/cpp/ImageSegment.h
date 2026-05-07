@@ -7,11 +7,8 @@
 #define _IMAGE_SEGMENT_H_
 
 #include <cstdint>
-#include <iostream>
-#include <iterator>
 #include <map>
 #include <string>
-#include <vector>
 
 #include "HeapObject.h"
 
@@ -51,50 +48,23 @@ typedef struct _ImageSegmentHeader
 static_assert(sizeof(ImageSegmentHeader) == 40 /*bytes*/,
               "segment_header size not 40 bytes");
 
+/**
+ * Base class for memory segments containing Egg objects.
+ * Provides the common interface used by Runtime: memory bounds and exports.
+ */
 class ImageSegment
 {
   public:
     ImageSegmentHeader header;
-  public:
     uint64_t _currentBase;
     std::map<std::string, HeapObject*> _exports;
-    std::vector<std::string> _importStrings;
-    std::vector<std::vector<uint32_t>> _importDescriptors;
-    ImageSegment(std::istream* data) { this->load(data); }
 
-    /**
-     * Allocate a new segment of given `size` at given `base` address.
-     * Contents of the segment is zeroed.
-     * Return value is address allocated when passed null as base.
-     */
-    uintptr_t alloc(uintptr_t base, size_t size);
+    virtual ~ImageSegment() = default;
 
-    /**
-     * Load a segment from given stream and return it. The stream should
-     * be positioned to the beginning of segment prior calling load()
-     */
-    void load(std::istream* data);
-
-    /**
-     * Traverses the image segment space looking for pointers.
-     *  - References to other objects in same space need to be relocated.
-     *  - References to imports (last two bits are 10b) are indices in import table,
-     *    and need to be changed to actual object addresses.
-     */
-    void fixPointerSlots(const std::vector<Object*> &imports);
-
-    uintptr_t spaceStart();
-    uintptr_t spaceEnd();
-
-    std::string& importStringAt_(uint32_t index);
-    HeapObject* relocatedAddress_(const HeapObject* object);
+    uintptr_t spaceStart() { return _currentBase + sizeof(ImageSegmentHeader); }
+    uintptr_t spaceEnd() { return _currentBase + header.size; }
 
     void dumpObjects();
-
-   private:
-    void readImportStrings(std::istream *data);
-    void readImportDescriptors(std::istream *data);
-    void readExports(std::istream *data);
 };
 
 } // namespace Egg

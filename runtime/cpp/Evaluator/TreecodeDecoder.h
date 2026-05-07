@@ -80,7 +80,10 @@ public:
 			case AstNodeTypes::IdentifierId:		return this->decodeIdentifier();
 			case AstNodeTypes::MessageId:			return this->decodeMessage();
 			case AstNodeTypes::ReturnId:			return this->decodeReturn();
-			default:								ASSERT(false); return nullptr;
+			default:								
+				std::cerr << "ERROR: Unknown AST node type: " << (int)id << std::endl;
+				ASSERT(false); 
+				return nullptr;
 		}
 	}
 

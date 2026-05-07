@@ -66,11 +66,8 @@ SSemanticVisitor >> initialize [
 
 { #category : #visiting }
 SSemanticVisitor >> visitAssignment: anAssignmentNode [
-	| c |
 	self analyzeAssignment: anAssignmentNode.
-	anAssignmentNode expression acceptVisitor: self.
-	c := anAssignmentNode compiler.
-
+	anAssignmentNode expression acceptVisitor: self
 ]
 
 { #category : #visiting }

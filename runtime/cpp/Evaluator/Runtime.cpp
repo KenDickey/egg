@@ -2,7 +2,7 @@
 #include <sstream>
 
 #include "Runtime.h"
-#include "Bootstrapper.h"
+#include "Loader.h"
 #include "Evaluator.h"
 #include "Allocator/GCHeap.h"
 #include "SAbstractMessage.h"
@@ -16,11 +16,13 @@ using namespace Egg;
 Runtime *Egg::debugRuntime = nullptr;
 
 
-Runtime::Runtime(Bootstrapper* bootstrapper, ImageSegment* kernel):
-    _bootstrapper(bootstrapper),
+Runtime::Runtime(Loader* loader, ImageSegment* kernel, SymbolProvider* symbolProvider):
+    _loader(loader),
     _kernel(kernel),
+    _symbolProvider(symbolProvider),
     _lastHash(0)
 {
+    debugRuntime = this;
     this->initializeKernelObjects();
     KnownObjects::initializeFrom(this);
     _heap = new GCHeap(this);
@@ -31,6 +33,21 @@ void Runtime::initializeEvaluator() {
     _evaluator = new Evaluator(this, _falseObj, _trueObj, _nilObj);
     this->initializeClosureReturnMethod();
 
+}
+
+void Runtime::initializeClosureReturnMethod() {
+    auto symbol = this->existingSymbolFrom_("return:");
+    if (!symbol) {
+        std::cerr << "Warning: 'return:' symbol not found" << std::endl;
+        return;
+    }
+    auto behavior = this->speciesInstanceBehavior_(_closureClass);
+    auto method = this->lookup_startingAt_(symbol, behavior);
+    if (!method) {
+        std::cerr << "Warning: Could not find 'return:' method in Closure behavior" << std::endl;
+        return;
+    }
+    this->_closureReturnMethod = method->asHeapObject();
 }
 
 uintptr_t Runtime::arrayedSizeOf_(Object *anObject) {
@@ -136,17 +153,44 @@ HeapObject *Runtime::newString_(const std::string &str)
 }
 
 HeapObject *Runtime::addSymbol_(const std::string &str){
-    return this->sendLocal_to_("asSymbol", (Object*)this->newString_(str))->asHeapObject();
+    auto result = _symbolProvider->symbolFor_(str);
+    return result->asHeapObject();
+}
+
+Object* Runtime::send_to_(Object *symbol, Object *receiver) {
+    std::vector<Object*> args;
+    return this->_evaluator->send_to_with_(symbol, receiver, args);
+}
+
+Object* Runtime::send_to_with_(Object *symbol, Object *receiver, Object* arg1) {
+    std::vector<Object*> args;
+    args.push_back(arg1);
+    return this->_evaluator->send_to_with_(symbol, receiver, args);
+}
+
+void Runtime::switchToDynamicSymbolProvider_(HeapObject* symbolTable) {
+    // Don't delete old provider — Bootstrapper may still reference it
+    _symbolProvider = new DynamicSymbolProvider(this, symbolTable);
+;
 }
 
 HeapObject *Runtime::loadModule_(HeapObject *name) {
-    return _bootstrapper->loadModule_(name->asLocalString());
+    return _loader->loadModule_(name->asLocalString());
+}
+
+HeapObject *Runtime::loadModuleFromPath_(const std::string &path) {
+    return _loader->loadModuleFromPath_(path);
 }
 
 void Runtime::addSegmentSpace_(ImageSegment* segment)
 {
     GCSpace *space = GCSpace::allocatedAt_limit_(segment->spaceStart(), segment->spaceEnd(), false);
-    space->_name = this->moduleName_(segment->header.module)->asLocalString();
+    // Handle bootstrapped kernel which doesn't have a module object yet
+    if (segment->header.module != nullptr) {
+        space->_name = this->moduleName_(segment->header.module)->asLocalString();
+    } else {
+        space->_name = "BootstrappedKernel";
+    }
     this->_heap->addSpace_(space);
 }
 
@@ -165,13 +209,12 @@ uintptr_t Runtime::hashFor_(Object *anObject)
  }
 
 Object* Runtime::sendLocal_to_withArgs_(const std::string &selector, Object *receiver, std::vector<Object*> &arguments) {
-    auto symbol = this->existingSymbolFrom_(selector);
-
+    auto symbol = (Object*)this->addSymbol_(selector);
     return this->_evaluator->send_to_with_(symbol, receiver, arguments);
 }
 
 Object* Runtime::sendLocal_to_with_(const std::string &selector, Object *receiver, Object* arg1) {
-    auto symbol = this->existingSymbolFrom_(selector);
+    auto symbol = (Object*)this->addSymbol_(selector);
     std::vector<Object*> args;
     args.push_back(arg1);
 
@@ -179,7 +222,7 @@ Object* Runtime::sendLocal_to_with_(const std::string &selector, Object *receive
 }
 
 Object* Runtime::sendLocal_to_with_with_(const std::string &selector, Object *receiver, Object *arg1, Object* arg2) {
-    auto symbol = this->existingSymbolFrom_(selector);
+    auto symbol = (Object*)this->addSymbol_(selector);
     std::vector<Object*> args;
     args.push_back(arg1);
     args.push_back(arg2);
@@ -218,14 +261,10 @@ Object* Runtime::lookup_startingAt_(Object *symbol, HeapObject *behavior)
 {
     checkCache();
 
-    //if (symbol->printString() == "#sizeInBytes") {
-    //    int a = 0;
-    //}
     auto iter = _globalCache.find(global_cache_key(symbol,(Object*)behavior));
     if (iter != _globalCache.end()) {
-        if (iter->second->get()->asHeapObject()->slotAt_(5)->printString() != symbol->printString())
-            int b = 1;
-        return iter->second->get();
+        auto result = iter->second->get();
+        return result;
     }
     
     auto method = this->doLookup_startingAt_(symbol, behavior);
@@ -254,6 +293,24 @@ Object* Runtime::doLookup_startingAt_(Object *symbol, HeapObject *startBehavior)
 Object* Runtime::methodFor_in_(Object *symbol, HeapObject *behavior)
 {
 	auto md = this->behaviorMethodDictionary_(behavior);
+	HeapObject* symbolObj = symbol->asHeapObject();
+
+	// Array-based method dict: linear scan of [selector, method, selector, method, ...]
+	if (this->speciesOf_((Object*)md) == this->_arrayClass) {
+		uint32_t size = md->size();
+		for (uint32_t i = 0; i + 1 < size; i += 2) {
+			Object* key = md->slot(i);
+			if (key == (Object*)this->_nilObj)
+				return nullptr;
+			if (key == symbol)
+				return md->slot(i + 1);
+		}
+		return nullptr;
+	}
+
+	// Hashed MethodDictionary lookup (InlinedHashTable: key-value pairs in indexed slots)
+	// The table is an InlinedHashTable, a subclass of HashTable which extends Array
+	// with a named ivar `policy` at slot(0). Indexed key-value pairs start at slot(1).
 	auto table = this->dictionaryTable_(md);
 	for (int index = 2; index < table->size(); index += 2) { 
 		if (table->slotAt_(index) == symbol)
@@ -263,35 +320,9 @@ Object* Runtime::methodFor_in_(Object *symbol, HeapObject *behavior)
 }
 
 Object* Runtime::existingSymbolFrom_(const std::string &selector) {
-    auto result = this->symbolTableAt_(selector);
-    if (result == nullptr) {
-        std::string str = std::string("symbol #") + selector + " not found in image";
-        error(str.c_str());
-    }
-    return result;
+    return _symbolProvider->existingSymbolFor_(selector);
 }
-Object* Runtime::symbolTableAt_(const std::string &selector)
-{
-    auto it = this->_knownSymbols.find(selector);
-    if (it != this->_knownSymbols.end())
-        return it->second->get();
-
-    if (selector == "linker:token:") {
-        int a = 0;
-    }
-    HeapObject *table = this->_symbolTable->slotAt_(2)->asHeapObject();
-    for (int i = 2; i < table->size(); i++){
-        auto symbol = table->slotAt_(i);
-        if (symbol != (Object*)this->_nilObj){
-            //std::cout << "symbol" << symbol->printString() << " at: 0x" << i << std::endl;
-            if (symbol->asHeapObject()->sameBytesThan(selector))
-               return symbol;
-        }
-    }
-
-    return nullptr;
-}
-
+    
 HeapObject* Runtime::lookupAssociationFor_in_(Object *symbol, HeapObject *dictionary) {
     auto table = this->dictionaryTable_(dictionary);
     for (int index = 2; index <= table->size(); index++) {

@@ -33,9 +33,8 @@ from `runtime/pharo`).
 ## Using
 
 If you just want to use egg, download the corresponding build artifact from releases.
-Currently, our only working platforms are Pharo and JS, native ones will come soon™. You'll find
-supported platforms in /runtime subdirectories. Look for individual README.md on each
-of them to find specific help about using that platform.
+Currently working platforms are **Pharo**, **C++** and **JS**. You'll find supported platforms in `/runtime`
+subdirectories. Look for individual `README.md` on each of them for platform-specific help.
 
 Each subdir of runtime implements a VM that can run Egg code in a different platform. All
 platforms use the same Egg code, which is stored in [modules](modules) directory. For
@@ -47,25 +46,39 @@ now we have the following runtimes:
 
 ## Building
 
-To build egg from scratch you will need `make` and some tools that vary depending on your target platform (i.e.
-CMake and a C++ compiler for the cpp VM, Pharo for the egg VM that runs on top of Pharo, node.js if you want to
-host your egg in JavaScript as a server).
-In a nutshell, clone this repo and follow the steps provided in the respective platform READMEs in `runtime` subdirs.
+To build egg from scratch you will need `make` and some tools that vary depending on your target platform:
+
+| Platform | Prerequisites |
+|----------|--------------|
+| `pharo`  | Pharo (fetched automatically via `pharo-vm`) |
+| `cpp`    | CMake, a C++ compiler, and [Conan](https://conan.io) |
+| `js`     | Node.js |
+
+In a nutshell, clone this repo and run `make <platform>`:
 
 ```
 git clone git@github.com:powerlang/egg.git
-make <platform>
+make pharo   # bootstrap VM + image on top of Pharo
+make cpp     # native C++ VM (requires CMake + Conan)
+make js      # JavaScript VM (requires node.js)
 ```
 
-where platform can be `js`, `cpp` or `lmr` (only `js` works right now, we are actively working in supporting the other two).
+See the individual `runtime/<platform>/README.md` files for detailed build instructions.
 
 
 ## Project status
 
 There are (at least) two mostly orthogonal sides in this project: runtimes and Egg Smalltalk modules.
 In the Egg Smalltalk axis, we already have: kernel, compiler, modules and image-segment builder, among others.
-In runtime axis, we started using Pharo as a dev platform as it is the easiest to get working (it
-already includes a GC and JIT), then also implemented a VM for egg in JS, one in C++ and also an LMR (a Live
-Metacircular VM Runtime, a.k.a. a Smalltalk-in-Smalltalk VM).
+In the runtime axis, we used Pharo as the primary development and bootstrapping platform — it provides a GC and
+JIT for free and makes debugging straightforward. We now also have a working C++ VM (interpreter with bootstrapper,
+GC and module loader), a JS VM, and an LMR (Live Metacircular Runtime — a Smalltalk-in-Smalltalk VM).
 
-We haven't done a 1.0 release yet, so expect a bumpy road if trying egg in the short term, the code is in alpha state.
+Current state by platform:
+
+- **Pharo** — primary bootstrap and development platform; fully working.
+- **C++** — interpreter VM fully working: loads Tonel sources, bootstraps the kernel, and runs modules.
+- **JS** — working VM for node.js / browser.
+- **LMR** — in progress.
+
+We haven't done a 1.0 release yet, so expect a bumpy road if trying egg in the short term; the code is in alpha state.

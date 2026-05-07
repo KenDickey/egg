@@ -23,6 +23,7 @@ class EvaluationContext {
     HeapObject *_regM, *_regE;
     uintptr_t  _regSP, _regBP, _regPC;
     Object *_regS, **_stack;
+    uintptr_t _stackSize;
     Runtime *_runtime;
 
     const int FRAME_TO_RECEIVER_DELTA = 1;
@@ -36,28 +37,26 @@ class EvaluationContext {
 
 public:
     const int STACK_SIZE = 64 * 1024;
-    EvaluationContext(Runtime *runtime) : 
-        _runtime(runtime)
-    {
-        _regM = _regE = nullptr;
-        _regSP = STACK_SIZE + 1;
-        _regBP = _regPC = 0;
-        _regS = 0;
-
-        _stack = new Object*[STACK_SIZE];
-    
-    }
+    EvaluationContext(Runtime *runtime);
 
     Object* receiver() { return _regS; }
     Object* self() { return _regS; }
     
     HeapObject* environment() { return _regE; }
+    void environment_(HeapObject* env) { _regE = env; }
     HeapObject* compiledCode() { return _regM; }
 
     uintptr_t stackPointer() { return _regSP; }
+    void stackPointer_(uintptr_t sp) { _regSP = sp; }
     uintptr_t framePointer() { return _regBP; }
     void framePointer_(uintptr_t bp) { _regBP = bp; }
     Object** stack() { return _stack; }
+    uintptr_t stackSize() { return _stackSize; }
+
+    void bindToBuffer_size_(Object **buffer, uintptr_t size) {
+        _stack = buffer;
+        _stackSize = size;
+    }
 
     HeapObject* classBinding();
 

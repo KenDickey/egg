@@ -109,6 +109,17 @@ ProtoObject >> _size [
 	^self errorVMSpecific
 ]
 
+{ #category : #'raw access' }
+ProtoObject >> _uLongAtOffset: offset [
+	^self _primitiveULongAtOffset: offset
+]
+
+{ #category : #'raw access' }
+ProtoObject >> _uLongAtValidOffset: offset put: anInteger [
+	self _primitiveULongAtOffset: offset put: anInteger.
+	^anInteger
+]
+
 { #category : #comparing }
 ProtoObject >> ~~ anObject [
 	^self == anObject ifTrue: [false] ifFalse: [true]
@@ -240,7 +251,7 @@ ProtoObject >> class [
 
 { #category : #system }
 ProtoObject >> doesNotUnderstand: aMessage [
-	^MessageNotUnderstood message: aMessage
+	^MessageNotUnderstood message: aMessage receiver: self
 ]
 
 { #category : #errors }

@@ -200,7 +200,7 @@ Object >> disableCode: aBlock [
 
 { #category : #private }
 Object >> ensurePropertyTable [
-	^Smalltalk ensurePropertyTableFor: self
+	^Kernel ensurePropertyTableFor: self
 ]
 
 { #category : #evaluating }
@@ -782,7 +782,7 @@ Object >> propertyAt: aSymbol put: anObject [
 
 { #category : #private }
 Object >> propertyTable [
-	^(Smalltalk propertiesFor: self) ifNil: [IdentityDictionary new]
+	^(Kernel propertiesFor: self) ifNil: [IdentityDictionary new]
 ]
 
 { #category : #'event handling' }
@@ -867,7 +867,7 @@ Object >> removeProperty: aSymbol [
 { #category : #'accessing-properties' }
 Object >> removeProperty: aSymbol ifAbsent: aBlock [
 	| t |
-	t := Smalltalk propertiesFor: self.
+	t := Kernel propertiesFor: self.
 	t notNil ifTrue: [t removeKey: aSymbol ifAbsent: aBlock]
 ]
 

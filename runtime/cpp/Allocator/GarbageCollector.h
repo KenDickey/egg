@@ -51,12 +51,14 @@ public:
     void rescueEphemeron_(HeapObject *ephemeron);
     bool rescueUnreachableEphemerons();
     virtual void scan_from_to_(HeapObject *current, uintptr_t start, uintptr_t limit) = 0;
+    virtual void scanRoot_(Object** root) = 0;
     void scanNativeStackFrame_sized_(uintptr_t *framePointer, uintptr_t size);
     void scanStackFrameObjects_sized_(uintptr_t *framePointer, uintptr_t size);
     void scanSpecialSlots_(HeapObject *special);
 
     void nativeFramesStartingAt_bp_do_(uintptr_t **stack, uintptr_t sp, uintptr_t bp, std::function<void(uintptr_t*, uintptr_t)> block);
-    void scanFirstStackChunk_(HeapObject * aProcessVMStack);
+    void scanStack_sp_bp_(uintptr_t **stack, uintptr_t sp, uintptr_t bp);
+    void scanSuspendedProcessStack_(HeapObject * aProcessVMStack);
     void scanPointer_(Object **pointer);
     void scanCurrentContext();
     void scanStack_(HeapObject *aProcessVMStack);

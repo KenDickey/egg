@@ -437,6 +437,11 @@ EggMetacircularRuntime >> loadModule: symbol [
 ]
 
 { #category : 'initialization' }
+EggMetacircularRuntime >> loadModuleFromPath: symbol [
+	^ bootstrapper loadModuleFromPath: symbol asLocalString asFileReference
+]
+
+{ #category : 'initialization' }
 EggMetacircularRuntime >> localMethodTreecodes: method [
 
 	^ (self methodTreecodes: method) bytes
@@ -854,6 +859,9 @@ EggMetacircularRuntime >> print: anLMRObject on: aStream [
 				nextPutAll: '>>#';
 				nextPutAll: selector;
 				nextPutAll: '>' ].
+	((self isMetaclass: species)or: [name = 'Metaclass'])
+		ifTrue: [ ^aStream nextPut: $<; nextPutAll: (self speciesLocalName: anLMRObject); nextPut: $> ].
+
 	aStream
 		nextPut: $<;
 		nextPutAll: name withArticle;

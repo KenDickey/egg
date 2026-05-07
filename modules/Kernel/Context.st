@@ -66,8 +66,8 @@ Context >> code: anExecutableCode method: aCompiledMethod [
 
 { #category : #services }
 Context >> copyAllTo: aProcessStack [
-	| start offset |
-	start := parent copyAllTo: aProcessStack.
+	| start |
+	start := caller copyAllTo: aProcessStack.
 	^self copyTo: aProcessStack at: start
 ]
 

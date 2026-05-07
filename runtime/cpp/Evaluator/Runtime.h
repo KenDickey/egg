@@ -11,6 +11,7 @@
 #include "KnownConstants.h"
 #include "PlatformCode.h"
 #include "GCedRef.h"
+#include "SymbolProvider.h"
 
 namespace Egg {
 
@@ -19,7 +20,7 @@ class SAbstractMessage;
 class GCHeap;
 class SExpression;
 class Runtime;
-class Bootstrapper;
+class Loader;
 
 extern Runtime *debugRuntime;
 
@@ -27,12 +28,11 @@ class Runtime {
 	std::string printGlobalCache();
 public:
 	void checkCache();
-    Bootstrapper *_bootstrapper;
+    Loader *_loader;
     ImageSegment *_kernel;
     Evaluator *_evaluator;
     GCHeap *_heap;
-
-    std::map<std::string, GCedRef*> _knownSymbols;
+    SymbolProvider *_symbolProvider;
 
     //typedef std::vector<SAbstractMessage*> inline_cache;
     std::map<GCedRef*, std::vector <SAbstractMessage *> *, GCedRef::Comparator > _inlineCaches;
@@ -44,7 +44,7 @@ public:
     uint16_t _lastHash;
 
 public:
-    Runtime(Bootstrapper *bootstrapper, ImageSegment *kernel);
+    Runtime(Loader *loader, ImageSegment *kernel, SymbolProvider *symbolProvider);
 
     std::string print_(HeapObject* obj);
     void log_code_(std::string &string, uintptr_t code);
@@ -59,13 +59,16 @@ public:
 	Object* sendLocal_to_withArgs_(const std::string &selector, Object *receiver, std::vector<Object*> &arguments);
     Object* sendLocal_to_with_(const std::string &selector, Object *receiver, Object *arg1);
     Object* sendLocal_to_with_with_(const std::string &selector, Object *receiver, Object *arg1, Object* arg2);
+
+    // Overloads taking a symbol Object* directly
+    Object* send_to_(Object *symbol, Object *receiver);
+    Object* send_to_with_(Object *symbol, Object *receiver, Object *arg1);
     
     Object* lookup_startingAt_(Object *symbol, HeapObject *behavior);
     Object* doLookup_startingAt_(Object *symbol, HeapObject *behavior);
     Object* methodFor_in_(Object *symbol, HeapObject *behavior);
 
     Object* existingSymbolFrom_(const std::string &selector);
-    Object* symbolTableAt_(const std::string &selector);
 
     HeapObject* lookupAssociationFor_in_(Object *symbol, HeapObject *dictionary);
 
@@ -100,10 +103,9 @@ public:
     HeapObject* newExecutableCodeFor_with_(HeapObject *compiledCode, PlatformCode *platformCode);
     HeapObject* newString_(const std::string &str);
     HeapObject* addSymbol_(const std::string &str);
-    void addKnownSymbol_(const std::string &str, Object *symbol) {
-        _knownSymbols[str] = new GCedRef(symbol);
-    }
+    void switchToDynamicSymbolProvider_(HeapObject* symbolTable);
     HeapObject* loadModule_(HeapObject *name);
+    HeapObject* loadModuleFromPath_(const std::string &path);
 	void addSegmentSpace_(ImageSegment *segment);
 
     uintptr_t hashFor_(Object *anObject);
@@ -474,17 +476,58 @@ public:
 		return process->slot(Offsets::ProcessTopContext) != (Object*)KnownObjects::nil;
 	}
 
-	HeapObject* processVMStackProcess_(HeapObject * processVMStack) {
-		return processVMStack->slot(Offsets::ProcessVMStackProcess)->asHeapObject();
+	HeapObject* processStackProcess_(HeapObject * processStack) {
+		return processStack->slot(Offsets::ProcessStackProcess)->asHeapObject();
 	}
 
-	uintptr_t processVMStackSP_(HeapObject * processVMStack) {
-		return processVMStack->slot(Offsets::ProcessVMStackSP)->asSmallInteger()->asNative();
+	void processStackProcess_put_(HeapObject * processStack, Object *process) {
+		processStack->slot(Offsets::ProcessStackProcess) = process;
 	}
 
-	uintptr_t processVMStackBP_(HeapObject * processVMStack) {
-		return processVMStack->slot(Offsets::ProcessVMStackBP)->asSmallInteger()->asNative();
+	uintptr_t processStackSP_(HeapObject * processStack) {
+		return processStack->slot(Offsets::ProcessStackSP)->asSmallInteger()->asNative();
 	}
+
+	void processStackSP_put_(HeapObject * processStack, uintptr_t sp) {
+		processStack->slot(Offsets::ProcessStackSP) = (Object*)newInteger_(sp);
+	}
+
+	uintptr_t processStackBP_(HeapObject * processStack) {
+		return processStack->slot(Offsets::ProcessStackBP)->asSmallInteger()->asNative();
+	}
+
+	void processStackBP_put_(HeapObject * processStack, uintptr_t bp) {
+		processStack->slot(Offsets::ProcessStackBP) = (Object*)newInteger_(bp);
+	}
+
+	Object* processStackEnv_(HeapObject * processStack) {
+		return processStack->slot(Offsets::ProcessStackEnv);
+	}
+
+	void processStackEnv_put_(HeapObject * processStack, Object *env) {
+		processStack->slot(Offsets::ProcessStackEnv) = env;
+	}
+
+	Object** processVMStackBuffer_(HeapObject * processVMStack) {
+		auto smi = processVMStack->slot(Offsets::ProcessVMStackBuffer);
+		if (smi == (Object*)_nilObj) return nullptr;
+		return reinterpret_cast<Object**>(smi->asSmallInteger()->asNative());
+	}
+
+	void processVMStackBuffer_put_(HeapObject * processVMStack, Object **buffer) {
+		processVMStack->slot(Offsets::ProcessVMStackBuffer) =
+			(Object*)newInteger_(reinterpret_cast<intptr_t>(buffer));
+	}
+
+	uintptr_t processVMStackBufferSize_(HeapObject * processVMStack) {
+		return processVMStack->slot(Offsets::ProcessVMStackBufferSize)->asSmallInteger()->asNative();
+	}
+
+	void processVMStackBufferSize_put_(HeapObject * processVMStack, uintptr_t size) {
+		processVMStack->slot(Offsets::ProcessVMStackBufferSize) = (Object*)newInteger_(size);
+	}
+
+
 
 	void initializeKernelObjects()
 	{
@@ -507,17 +550,13 @@ public:
 		this->_behaviorClass =             _kernel->_exports["Behavior"];
 	    this->_ephemeronClass =            _kernel->_exports["Ephemeron"];
 		this->_processStackClass =         _kernel->_exports["ProcessVMStack"];
-        this->_symbolTable =               _kernel->_exports["SymbolTable"];
+        this->_openHashTableClass =        _kernel->_exports["OpenHashTable"];
+        this->_characterClass =             _kernel->_exports["Character"];
 
         this->_smallIntegerBehavior = this->speciesInstanceBehavior_(_smallIntegerClass);
 	}
 
-	void initializeClosureReturnMethod()
-	{
-		auto symbol = this->addSymbol_("return:");
-		auto behavior = this->speciesInstanceBehavior_(_closureClass);
-		this->_closureReturnMethod = this->lookup_startingAt_((Object*)symbol, behavior)->asHeapObject();
-	}
+	void initializeClosureReturnMethod();
 
     HeapObject *_falseObj;
     HeapObject *_trueObj;
@@ -538,7 +577,8 @@ public:
     HeapObject *_behaviorClass;
 	HeapObject *_ephemeronClass;
 	HeapObject *_processStackClass;
-    HeapObject *_symbolTable;
+    HeapObject *_openHashTableClass;
+    HeapObject *_characterClass;
 	HeapObject *_closureReturnMethod;
 
     HeapObject *_smallIntegerBehavior;
